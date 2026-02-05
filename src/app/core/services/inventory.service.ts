@@ -28,6 +28,7 @@ export class InventoryService {
   total = signal<number>(0);
   page = signal<number>(1);
   pageSize = signal<number>(10);
+  currentFilters = signal<InventoryFilters>({});
 
   // Computed values
   lowStockItems = signal<Inventory[]>([]);
@@ -39,7 +40,15 @@ export class InventoryService {
     this.loading.set(true);
     this.error.set(null);
 
-    const params: any = { page: page - 1, size: pageSize, ...filters };
+    if (filters) {
+      this.currentFilters.set(filters);
+    }
+
+    const params: any = { 
+      page: page - 1, 
+      size: pageSize, 
+      ...this.currentFilters() 
+    };
 
     this.http.get<ApiResponse<PaginatedResponse<Inventory>>>(
       this.apiConfig.getEndpoint('/inventory'),
@@ -265,12 +274,21 @@ export class InventoryService {
 
   // Set pagination
   setPage(newPage: number) {
+    if (this.page() === newPage) return;
     this.page.set(newPage);
     this.loadInventory(newPage, this.pageSize());
   }
 
   setPageSize(newPageSize: number) {
+    if (this.pageSize() === newPageSize) return;
     this.pageSize.set(newPageSize);
+    this.page.set(1); // Reset to first page when changing size
     this.loadInventory(1, newPageSize);
+  }
+
+  setFilters(filters: InventoryFilters) {
+    this.currentFilters.set(filters);
+    this.page.set(1);
+    this.loadInventory(1, this.pageSize());
   }
 }

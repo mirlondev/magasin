@@ -41,7 +41,7 @@ import { PopoverModule } from 'primeng/popover';
                   type="button" 
                   icon="pi pi-bars" 
                   class="p-button-text p-button-rounded sidebar-toggle"
-                  (click)="toggleSidebar()"
+                  (click)="toggleSidebar.emit()"
                   pTooltip="Menu"
                   tooltipPosition="bottom">
           </button>
@@ -334,8 +334,7 @@ import { PopoverModule } from 'primeng/popover';
   `]
 })
 export class NavbarComponent {
-  // @Output() toggleSidebar = new EventEmitter<void>();
-    @Input() toggleSidebar!: () => boolean;
+  @Output() toggleSidebar = new EventEmitter<void>();
 
   themeService = inject(ThemeService);
   authService = inject(AuthService);

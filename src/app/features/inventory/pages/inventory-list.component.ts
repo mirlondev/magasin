@@ -139,7 +139,7 @@ export class InventoryListComponent implements OnInit {
       if (this.selectedAlertType === 'over') filters.overStock = true;
     }
 
-    this.inventoryService.loadInventory(1, this.pageSize(), filters);
+    this.inventoryService.setFilters(filters);
   }
 
   onFilterChange() {
@@ -155,13 +155,18 @@ export class InventoryListComponent implements OnInit {
 
   onLazyLoad(event: any) {
     const page = (event.first / event.rows) + 1;
-    this.inventoryService.setPage(page);
-    this.inventoryService.setPageSize(event.rows);
+    const rows = event.rows;
+
+    if (this.pageSize() !== rows) {
+      this.inventoryService.setPageSize(rows);
+    } else if (this.inventoryService.page() !== page) {
+      this.inventoryService.setPage(page);
+    }
   }
 
   // Operations
   refresh() {
-    this.loadInventory();
+    this.inventoryService.loadInventory(this.inventoryService.page(), this.pageSize());
   }
 
   restockItem(item: any) {

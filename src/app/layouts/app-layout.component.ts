@@ -55,6 +55,14 @@ import { SidebarComponent } from "./sidebar.component";
       margin-left: 280px; /* Largeur de la sidebar */
       transition: margin-left 0.3s ease;
     }
+
+    .layout-wrapper:has(.sidebar-desktop.collapsed) .layout-main-container {
+      margin-left: 64px;
+    }
+    
+    .layout-wrapper:has(.mobile-sidebar) .layout-main-container {
+       margin-left: 0;
+    }
     
     .layout-main {
       flex: 1;
@@ -98,7 +106,7 @@ import { SidebarComponent } from "./sidebar.component";
     /* Responsive */
     @media screen and (max-width: 992px) {
       .layout-main-container {
-        margin-left: 0;
+        margin-left: 0 !important;
       }
       
       .layout-main {
