@@ -52,15 +52,21 @@ export class InventoryService {
         return of({ items: [], total: 0, page: 0, size: 0, totalPages: 0 });
       })
     ).subscribe(data => {
-      this.inventoryItems.set(data.items);
-      this.total.set(data.total);
-      this.page.set(data.page + 1);
-      this.pageSize.set(data.size);
+      const items = Array.isArray(data) ? data : (data?.items || []);
+      const total = Array.isArray(data) ? data.length : (data?.total || 0);
+      const page = Array.isArray(data) ? 1 : (data?.page || 0) + 1;
+      const size = Array.isArray(data) ? items.length : (data?.size || 10);
+      console.log(data);
+
+      this.inventoryItems.set(items);
+      this.total.set(total);
+      this.page.set(page);
+      this.pageSize.set(size);
       
       // Update computed signals
-      this.lowStockItems.set(data.items.filter(item => item.lowStock));
-      this.outOfStockItems.set(data.items.filter(item => item.outOfStock));
-      this.overStockItems.set(data.items.filter(item => item.overStock));
+      this.lowStockItems.set(items.filter(item => item.lowStock));
+      this.outOfStockItems.set(items.filter(item => item.outOfStock));
+      this.overStockItems.set(items.filter(item => item.overStock));
       
       this.loading.set(false);
     });

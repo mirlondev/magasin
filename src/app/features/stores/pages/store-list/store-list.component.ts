@@ -95,6 +95,7 @@ import { StoreFormComponent } from "../../components/store-form.component";
                     icon="pi pi-filter-slash" 
                     label="Réinitialiser" 
                     class="p-button-outlined w-full"
+                    style="height: 38px"
                     (click)="resetFilters()">
             </button>
           </div>
@@ -276,17 +277,20 @@ export class StoreListComponent implements OnInit {
   selectedStore = signal<Store | null>(null);
 
   // Computed
-  activeStoresCount = computed(() => 
-    this.stores().filter(s => s.status === StoreStatus.ACTIVE).length
-  );
+  activeStoresCount = computed(() => {
+    const list = this.stores() || [];
+    return list.filter(s => s && s.status === StoreStatus.ACTIVE).length;
+  });
 
-  shopsCount = computed(() => 
-    this.stores().filter(s => s.storeType === StoreType.SHOP).length
-  );
+  shopsCount = computed(() => {
+    const list = this.stores() || [];
+    return list.filter(s => s && s.storeType === StoreType.SHOP).length;
+  });
 
-  warehousesCount = computed(() => 
-    this.stores().filter(s => s.storeType === StoreType.WAREHOUSE).length
-  );
+  warehousesCount = computed(() => {
+    const list = this.stores() || [];
+    return list.filter(s => s && s.storeType === StoreType.WAREHOUSE).length;
+  });
 
   // Dropdown options
   storeTypeOptions = [

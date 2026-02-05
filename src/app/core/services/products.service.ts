@@ -52,14 +52,19 @@ export class ProductsService {
         return of({ items: [], total: 0, page: 0, size: 0, totalPages: 0 });
       })
     ).subscribe(data => {
-      this.products.set(data.items);
-      this.total.set(data.total);
-      this.page.set(data.page + 1);
-      this.pageSize.set(data.size);
+      const items = Array.isArray(data) ? data : (data?.items || []);
+      const total = Array.isArray(data) ? data.length : (data?.total || 0);
+      const page = Array.isArray(data) ? 1 : (data?.page || 0) + 1;
+      const size = Array.isArray(data) ? items.length : (data?.size || 10);
+
+      this.products.set(items);
+      this.total.set(total);
+      this.page.set(page);
+      this.pageSize.set(size);
       
       // Update computed signals
-      this.inStockProducts.set(data.items.filter(p => p.inStock));
-      this.outOfStockProducts.set(data.items.filter(p => !p.inStock));
+      this.inStockProducts.set(items.filter(p => p.inStock));
+      this.outOfStockProducts.set(items.filter(p => !p.inStock));
       
       this.loading.set(false);
     });

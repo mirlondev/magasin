@@ -197,8 +197,16 @@ export interface Inventory {
   nextRestockDate: string;
   createdAt: string;
   updatedAt: string;
-  product: Product;
+  // product: Product;
   store: Store;
+  productId:string;
+  productName:string;
+  productSku:string;
+  productImageUrl?:string;
+ storeId:string;
+storeName:string;
+storeType:StoreType;
+
 }
 
 export interface OrderItem {

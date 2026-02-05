@@ -54,16 +54,21 @@ export class OrdersService {
         return of({ items: [], total: 0, page: 0, size: 0, totalPages: 0 });
       })
     ).subscribe(data => {
-      this.orders.set(data.items);
-      this.total.set(data.total);
-      this.page.set(data.page + 1);
-      this.pageSize.set(data.size);
+      const items = Array.isArray(data) ? data : (data?.items || []);
+      const total = Array.isArray(data) ? data.length : (data?.total || 0);
+      const page = Array.isArray(data) ? 1 : (data?.page || 0) + 1;
+      const size = Array.isArray(data) ? items.length : (data?.size || 10);
+
+      this.orders.set(items);
+      this.total.set(total);
+      this.page.set(page);
+      this.pageSize.set(size);
       
       // Update computed signals
-      this.pendingOrders.set(data.items.filter(o => o.status === OrderStatus.PENDING));
-      this.processingOrders.set(data.items.filter(o => o.status === OrderStatus.PROCESSING));
-      this.completedOrders.set(data.items.filter(o => o.status === OrderStatus.COMPLETED));
-      this.cancelledOrders.set(data.items.filter(o => o.status === OrderStatus.CANCELLED));
+      this.pendingOrders.set(items.filter(o => o.status === OrderStatus.PENDING));
+      this.processingOrders.set(items.filter(o => o.status === OrderStatus.PROCESSING));
+      this.completedOrders.set(items.filter(o => o.status === OrderStatus.COMPLETED));
+      this.cancelledOrders.set(items.filter(o => o.status === OrderStatus.CANCELLED));
       
       this.loading.set(false);
     });

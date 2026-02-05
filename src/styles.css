@@ -1,3 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import "primeicons/primeicons.css";
+@import "tailwindcss";
 :root {
   --primary-color: #10b981;
   --primary-color-text: #ffffff;
@@ -12,6 +18,7 @@
   --transition-duration: 0.2s;
   --transition-timing: ease;
 }
+
 
 .dark-theme {
   --primary-color: #10b981;
@@ -99,10 +106,11 @@ body {
     display: none !important;
   }
 }
-/* @layer tailwind-utilities {
-  @tailwind components;
-  @tailwind utilities;
+/* .p-button {
+  height: 50px;
+  padding: 10px 20px;
+}
+.p-button-sm {
+  height: 40px;
+  padding: 10px 15px;
 } */
-@import "primeicons/primeicons.css";
-@import "tailwindcss";
-@import "tailwindcss-primeui";

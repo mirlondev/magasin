@@ -51,14 +51,19 @@ export class CustomersService {
         return of({ items: [], total: 0, page: 0, size: 0, totalPages: 0 });
       })
     ).subscribe(data => {
-      this.customers.set(data.items);
-      this.total.set(data.total);
-      this.page.set(data.page + 1);
-      this.pageSize.set(data.size);
+      const items = Array.isArray(data) ? data : (data?.items || []);
+      const total = Array.isArray(data) ? data.length : (data?.total || 0);
+      const page = Array.isArray(data) ? 1 : (data?.page || 0) + 1;
+      const size = Array.isArray(data) ? items.length : (data?.size || 10);
+
+      this.customers.set(items);
+      this.total.set(total);
+      this.page.set(page);
+      this.pageSize.set(size);
       
       // Update computed signals
-      this.activeCustomers.set(data.items.filter(c => c.isActive));
-      this.topCustomers.set([...data.items]
+      this.activeCustomers.set(items.filter(c => c.isActive));
+      this.topCustomers.set([...items]
         .sort((a, b) => b.totalPurchases - a.totalPurchases)
         .slice(0, 10));
       

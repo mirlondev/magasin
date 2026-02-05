@@ -79,14 +79,21 @@ export class StoresService {
       this.apiConfig.getEndpoint('/stores'),
       { params }
     ).pipe(
-      map(response => response.data),
+      map(response => response.data
+
+      ),
       tap(data => {
+        const items = Array.isArray(data) ? data : (data?.items || []);
+        const total = Array.isArray(data) ? data.length : (data?.total || 0);
+        const page = Array.isArray(data) ? 1 : (data?.page || 0) + 1;
+        const size = Array.isArray(data) ? items.length : (data?.size || 10);
+
         this.state.update(s => ({
           ...s,
-          items: data.items,
-          total: data.total,
-          page: data.page + 1,
-          pageSize: data.size,
+          items,
+          total,
+          page,
+          pageSize: size,
           loading: false
         }));
       }),

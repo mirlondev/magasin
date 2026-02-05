@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { Component, EventEmitter, Output, computed, inject, signal } from "@angular/core";
+import { Component, EventEmitter, Input, Output, computed, inject, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { Router } from "@angular/router";
 import { AvatarModule } from "primeng/avatar";
@@ -41,7 +41,7 @@ import { PopoverModule } from 'primeng/popover';
                   type="button" 
                   icon="pi pi-bars" 
                   class="p-button-text p-button-rounded sidebar-toggle"
-                  (click)="toggleSidebar.emit()"
+                  (click)="toggleSidebar()"
                   pTooltip="Menu"
                   tooltipPosition="bottom">
           </button>
@@ -334,8 +334,9 @@ import { PopoverModule } from 'primeng/popover';
   `]
 })
 export class NavbarComponent {
-  @Output() toggleSidebar = new EventEmitter<void>();
-  
+  // @Output() toggleSidebar = new EventEmitter<void>();
+    @Input() toggleSidebar!: () => boolean;
+
   themeService = inject(ThemeService);
   authService = inject(AuthService);
   router = inject(Router);

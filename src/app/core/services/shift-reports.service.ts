@@ -47,16 +47,21 @@ export class ShiftReportsService {
     ).pipe(
       map(response => response.data),
       tap(data => {
-        this.shiftReports.set(data.items);
-        this.total.set(data.total);
-        this.page.set(data.page + 1);
-        this.pageSize.set(data.size);
+        const items = Array.isArray(data) ? data : (data?.items || []);
+        const total = Array.isArray(data) ? data.length : (data?.total || 0);
+        const page = Array.isArray(data) ? 1 : (data?.page || 0) + 1;
+        const size = Array.isArray(data) ? items.length : (data?.size || 10);
+
+        this.shiftReports.set(items);
+        this.total.set(total);
+        this.page.set(page);
+        this.pageSize.set(size);
         
         // Update computed signals
-        this.openShifts.set(data.items.filter(s => s.status === ShiftStatus.OPEN));
-        this.closedShifts.set(data.items.filter(s => s.status === ShiftStatus.CLOSED));
-        this.suspendedShifts.set(data.items.filter(s => s.status === ShiftStatus.SUSPENDED));
-        this.underReviewShifts.set(data.items.filter(s => s.status === ShiftStatus.UNDER_REVIEW));
+        this.openShifts.set(items.filter(s => s.status === ShiftStatus.OPEN));
+        this.closedShifts.set(items.filter(s => s.status === ShiftStatus.CLOSED));
+        this.suspendedShifts.set(items.filter(s => s.status === ShiftStatus.SUSPENDED));
+        this.underReviewShifts.set(items.filter(s => s.status === ShiftStatus.UNDER_REVIEW));
         
         this.loading.set(false);
       }),

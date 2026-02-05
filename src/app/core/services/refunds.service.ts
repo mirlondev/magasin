@@ -52,15 +52,20 @@ export class RefundsService {
         return of({ items: [], total: 0, page: 0, size: 0, totalPages: 0 });
       })
     ).subscribe(data => {
-      this.refunds.set(data.items);
-      this.total.set(data.total);
-      this.page.set(data.page + 1);
-      this.pageSize.set(data.size);
+      const items = Array.isArray(data) ? data : (data?.items || []);
+      const total = Array.isArray(data) ? data.length : (data?.total || 0);
+      const page = Array.isArray(data) ? 1 : (data?.page || 0) + 1;
+      const size = Array.isArray(data) ? items.length : (data?.size || 10);
+
+      this.refunds.set(items);
+      this.total.set(total);
+      this.page.set(page);
+      this.pageSize.set(size);
       
       // Update computed signals
-      this.pendingRefunds.set(data.items.filter(r => r.status === RefundStatus.PENDING));
-      this.approvedRefunds.set(data.items.filter(r => r.status === RefundStatus.APPROVED));
-      this.completedRefunds.set(data.items.filter(r => r.status === RefundStatus.COMPLETED));
+      this.pendingRefunds.set(items.filter(r => r.status === RefundStatus.PENDING));
+      this.approvedRefunds.set(items.filter(r => r.status === RefundStatus.APPROVED));
+      this.completedRefunds.set(items.filter(r => r.status === RefundStatus.COMPLETED));
       
       this.loading.set(false);
     });
