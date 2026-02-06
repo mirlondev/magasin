@@ -3,7 +3,7 @@ import { Injectable, inject, signal } from "@angular/core";
 import { Observable, catchError, map, of, tap } from "rxjs";
 import { ApiConfig } from "../../core/api/api.config";
 import { HttpErrorHandler } from "../../core/api/http-error.handler";
-import { ApiResponse, Order, OrderStatus, PaginatedResponse, PaymentMethod, PaymentStatus } from "../../core/models";
+import { ApiResponse, Order, OrderRequest, OrderStatus, PaginatedResponse, PaymentMethod, PaymentStatus } from "../../core/models";
 
 interface OrderFilters {
   status?: OrderStatus;
@@ -94,7 +94,7 @@ export class OrdersService {
   }
 
   // Create new order
-  createOrder(orderData: Partial<Order>): Observable<Order> {
+  createOrder(orderData: OrderRequest): Observable<Order> {
     this.loading.set(true);
     return this.http.post<ApiResponse<Order>>(
       this.apiConfig.getEndpoint('/orders'),

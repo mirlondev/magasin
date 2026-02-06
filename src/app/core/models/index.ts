@@ -288,11 +288,40 @@ export interface ShiftReport {
   store: Store;
   cashier: User;
 }
-
+export enum UserStatus{
+  ON_LEAVE= 'ON_LEAVE',
+  ACTIVE= 'ACTIVE',
+  INACTIVE = 'INACTIVE'
+}
 // Request Models
 export interface LoginRequest {
   username: string;
   password: string;
+}
+
+export interface OrderItemRequest {
+  productId: string;
+  quantity: number;
+  discountPercentage?: number;
+  notes?: string;
+}
+
+export interface OrderRequest {
+  customerId?: string;
+  storeId: string;
+  items: OrderItemRequest[];
+  discountAmount?: number;
+  paymentMethod?: PaymentMethod;
+  amountPaid?: number;
+  taxRate?: number;
+  isTaxable?: boolean;
+  notes?: string;
+}
+
+export interface ShiftReportRequest {
+  storeId: string;
+  openingBalance: number;
+  notes?: string;
 }
 
 export interface AuthResponse {

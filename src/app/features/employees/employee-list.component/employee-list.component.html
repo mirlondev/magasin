@@ -1,0 +1,366 @@
+<div class="p-4">
+  <p-toast />
+  <p-confirmDialog />
+
+  <!-- Toolbar -->
+  <p-toolbar>
+    <div class="p-toolbar-group-start">
+      <h2 class="text-2xl font-bold">Gestion des Employés</h2>
+    </div>
+    
+    <div class="p-toolbar-group-end">
+      @if (canManageEmployees()) {
+        <button pButton 
+                icon="pi pi-plus" 
+                label="Nouvel Employé" 
+                class="p-button-success mr-4"
+                [routerLink]="['/employees/new']">
+        </button>
+      }
+      
+      <button pButton 
+              icon="pi pi-file-export" 
+              label="Rapport" 
+              class="p-button-help mr-4"
+              (click)="generateReport()">
+      </button>
+      
+      <button pButton 
+              icon="pi pi-refresh" 
+              label="Actualiser" 
+              class="p-button-outlined"
+              (click)="refresh()"
+              [disabled]="loading()">
+      </button>
+    </div>
+  </p-toolbar>
+
+  <!-- Filters -->
+  <div class="p-4 surface-ground rounded mb-4">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div>
+        <label class="block text-sm font-medium mb-2">Recherche</label>
+        <input pInputText 
+               [(ngModel)]="searchTerm"
+               (ngModelChange)="onFilterChange()"
+               placeholder="Nom, email, téléphone..." 
+               class="w-full" />
+      </div>
+      
+      <div>
+        <label class="block text-sm font-medium mb-2">Rôle</label>
+        <p-select [options]="roleOptions" 
+                  [(ngModel)]="selectedRole"
+                  (onChange)="onFilterChange()"
+                  placeholder="Tous les rôles"
+                  [showClear]="true"
+                  class="w-full">
+        </p-select>
+      </div>
+      
+      <div>
+        <label class="block text-sm font-medium mb-2">Statut</label>
+        <p-select [options]="statusOptions" 
+                  [(ngModel)]="selectedStatus"
+                  (onChange)="onFilterChange()"
+                  placeholder="Tous les statuts"
+                  [showClear]="true"
+                  class="w-full">
+        </p-select>
+      </div>
+      
+      <div class="flex items-end">
+        <button pButton 
+                icon="pi pi-filter-slash" 
+                label="Réinitialiser" 
+                class="p-button-outlined w-full"
+                style="height: 38px"
+                (click)="resetFilters()">
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Statistics -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="surface-card p-4 shadow-2 rounded">
+      <div class="text-500 font-medium">Total Employés</div>
+      <div class="text-900 text-3xl font-bold">{{ total() }}</div>
+    </div>
+    
+    <div class="surface-card p-4 shadow-2 rounded">
+      <div class="text-500 font-medium">Employés Actifs</div>
+      <div class="text-900 text-3xl font-bold text-green-500">{{ activeEmployees().length }}</div>
+    </div>
+    
+    <div class="surface-card p-4 shadow-2 rounded">
+      <div class="text-500 font-medium">Administrateurs</div>
+      <div class="text-900 text-3xl font-bold text-red-500">{{ admins().length }}</div>
+    </div>
+    
+    <div class="surface-card p-4 shadow-2 rounded">
+      <div class="text-500 font-medium">Caissiers</div>
+      <div class="text-900 text-3xl font-bold text-blue-500">{{ cashiers().length }}</div>
+    </div>
+  </div>
+
+  <!-- Employees Table -->
+  <p-table [value]="employees()" 
+           [lazy]="true" 
+           [paginator]="true" 
+           [rows]="pageSize()"
+           [totalRecords]="total()"
+           [loading]="loading()"
+           (onLazyLoad)="onLazyLoad($event)"
+           [rowsPerPageOptions]="[10, 25, 50]"
+           [tableStyle]="{'min-width': '75rem'}">
+    
+    <ng-template pTemplate="header">
+      <tr>
+        <th>Employé</th>
+        <th>Contact</th>
+        <th>Rôle</th>
+        <th>Magasin</th>
+        <th>Statut</th>
+        <th>Date d'embauche</th>
+        <th>Actions</th>
+      </tr>
+    </ng-template>
+    
+    <ng-template pTemplate="body" let-employee>
+      <tr>
+        <td>
+          <div class="flex items-center">
+            @if (employee.profilePictureUrl) {
+              <p-avatar [image]="employee.profilePictureUrl" 
+                       [label]="employee.firstName.charAt(0) + employee.lastName.charAt(0)" 
+                       shape="circle"
+                       size="large"
+                       class="mr-3">
+              </p-avatar>
+            } @else {
+              <p-avatar [label]="employee.firstName.charAt(0) + employee.lastName.charAt(0)" 
+                       shape="circle"
+                       size="large"
+                       class="mr-3"
+                       [style]="{ 'background-color': '#4CAF50', 'color': '#ffffff' }">
+              </p-avatar>
+            }
+            <div>
+              <div class="font-semibold">{{ employee.firstName }} {{ employee.lastName }}</div>
+              <div class="text-sm text-gray-500">ID: {{ employee.userId }}</div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <div class="space-y-1">
+            <div class="flex items-center">
+              <i class="pi pi-envelope text-gray-500 mr-2"></i>
+              <span>{{ employee.email }}</span>
+            </div>
+            <div class="flex items-center">
+              <i class="pi pi-phone text-gray-500 mr-2"></i>
+              <span>{{ employee.phoneNumber || 'N/A' }}</span>
+            </div>
+          </div>
+        </td>
+        <td>
+          <p-tag [value]="getRoleLabel(employee.userRole)" 
+                 [severity]="getRoleSeverity(employee.userRole)" />
+        </td>
+        <td>
+          <div class="font-medium">{{ employee.store?.name || 'Non assigné' }}</div>
+          <div class="text-sm text-gray-500">{{ employee.store?.address || '' }}</div>
+        </td>
+        <td>
+          <p-tag [value]="getStatusLabel(employee.status)" 
+                 [severity]="getStatusSeverity(employee.status)" />
+          @if (!employee.active) {
+            <p-badge value="Inactif" severity="danger" class="ml-1"></p-badge>
+          }
+        </td>
+        <td>
+          <div class="font-medium">{{ employee.hireDate | date:'dd/MM/yyyy' }}</div>
+          <div class="text-sm text-gray-500">{{ employee.hireDate | date:'shortTime' }}</div>
+        </td>
+        <td>
+          <div class="flex gap-2">
+            <button pButton 
+                    icon="pi pi-eye" 
+                    class="p-button-rounded p-button-info p-button-text"
+                    (click)="viewEmployee(employee)">
+            </button>
+            
+            @if (canEditEmployee(employee)) {
+              <button pButton 
+                      icon="pi pi-pencil" 
+                      class="p-button-rounded p-button-warning p-button-text"
+                      (click)="editEmployee(employee)"
+                      [disabled]="loading()">
+              </button>
+              
+              <button pButton 
+                      icon="pi pi-key" 
+                      class="p-button-rounded p-button-help p-button-text"
+                      (click)="openRoleDialog(employee)"
+                      [disabled]="loading()"
+                      pTooltip="Changer le rôle">
+              </button>
+              
+              <button pButton 
+                      [icon]="employee.active ? 'pi pi-ban' : 'pi pi-check'" 
+                      class="p-button-rounded p-button-secondary p-button-text"
+                      (click)="toggleEmployeeStatus(employee)"
+                      [disabled]="loading()"
+                      pTooltip="employee.active ? 'Désactiver' : 'Activer'">
+              </button>
+                   
+              
+              
+              @if (canManageEmployees() && !isAdmin()) {
+                <button pButton 
+                        icon="pi pi-trash" 
+                        class="p-button-rounded p-button-danger p-button-text"
+                        (click)="deleteEmployee(employee)"
+                        [disabled]="loading()">
+                </button>
+              }
+            }
+          </div>
+        </td>
+      </tr>
+    </ng-template>
+    
+    <ng-template pTemplate="emptymessage">
+      <tr>
+        <td colspan="7" class="text-center p-6">
+          <div class="text-500">
+            @if (loading()) {
+              <p class="text-lg">Chargement en cours...</p>
+            } @else {
+              <div class="flex flex-col items-center">
+                <i class="pi pi-users text-5xl text-gray-300 mb-4"></i>
+                <p class="text-lg mb-2">Aucun employé trouvé</p>
+                <p class="text-gray-500">Essayez de modifier vos filtres ou d'ajouter un nouvel employé</p>
+              </div>
+            }
+          </div>
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+
+  <!-- Change Role Dialog -->
+  <p-dialog header="Changer le rôle" 
+            [(visible)]="showRoleDialog" 
+            [modal]="true" 
+            [style]="{ width: '500px' }"
+            *ngIf="selectedEmployee">
+    <div class="space-y-4">
+      <div class="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+        <div class="flex items-center mb-3">
+          @if (selectedEmployee.profilePictureUrl) {
+            <img [src]="selectedEmployee.profilePictureUrl" 
+                 [alt]="selectedEmployee.firstName"
+                 class="w-12 h-12 rounded-full object-cover mr-3" />
+          } @else {
+            <div class="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mr-3">
+              <span class="text-white font-bold">
+                {{ selectedEmployee.firstName.charAt(0) }}{{ selectedEmployee.lastName.charAt(0) }}
+              </span>
+            </div>
+          }
+          <div>
+            <div class="font-semibold">{{ selectedEmployee.firstName }} {{ selectedEmployee.lastName }}</div>
+            <div class="text-sm text-gray-500">{{ selectedEmployee.email }}</div>
+          </div>
+        </div>
+        <div class="text-sm">
+          <span class="font-medium">Rôle actuel :</span>
+          <p-tag [value]="getRoleLabel(selectedEmployee.userRole)" 
+                 [severity]="getRoleSeverity(selectedEmployee.userRole)"
+                 class="ml-2" />
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium mb-2">Nouveau rôle</label>
+        <div class="grid grid-cols-2 gap-2">
+          @for (role of roleOptions; track role.value) {
+            <button pButton 
+                    [label]="role.label" 
+                    [class]="selectedEmployee.userRole === role.value ? 'p-button-outlined p-button-primary' : 'p-button-outlined'"
+                    (click)="updateRole(role.value)"
+                    class="w-full">
+            </button>
+          }
+        </div>
+      </div>
+
+      <div class="p-3 bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 rounded">
+        <div class="flex">
+          <i class="pi pi-exclamation-triangle text-yellow-500 text-lg mr-3"></i>
+          <div class="text-sm">
+            <strong>Attention :</strong> Changer le rôle d'un employé peut affecter ses permissions d'accès dans le système.
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <ng-template pTemplate="footer">
+      <button pButton 
+              label="Annuler" 
+              class="p-button-outlined"
+              (click)="showRoleDialog = false">
+      </button>
+    </ng-template>
+  </p-dialog>
+
+  <!-- Inactive Employees Dialog -->
+  <p-dialog header="Employés inactifs" 
+            [(visible)]="showInactiveDialog" 
+            [modal]="true" 
+            [style]="{ width: '800px' }">
+    <p-table [value]="getFilter()!" 
+             [paginator]="true" 
+             [rows]="5">
+      <ng-template pTemplate="header">
+        <tr>
+          <th>Nom</th>
+          <th>Email</th>
+          <th>Rôle</th>
+          <th>Date de désactivation</th>
+          <th>Actions</th>
+        </tr>
+      </ng-template>
+      
+      <ng-template pTemplate="body" let-employee>
+        <tr>
+          <td>{{ employee.firstName }} {{ employee.lastName }}</td>
+          <td>{{ employee.email }}</td>
+          <td>
+            <p-tag [value]="getRoleLabel(employee.userRole)" 
+                   [severity]="getRoleSeverity(employee.userRole)" />
+          </td>
+          <td>{{ employee.lastLogin | date:'dd/MM/yyyy' }}</td>
+          <td>
+            <button pButton 
+                    icon="pi pi-check" 
+                    label="Réactiver" 
+                    class="p-button-success p-button-sm"
+                    (click)="toggleEmployeeStatus(employee)">
+            </button>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+    
+    <ng-template pTemplate="footer">
+      <button pButton 
+              label="Fermer" 
+              class="p-button-outlined"
+              (click)="showInactiveDialog = false">
+      </button>
+    </ng-template>
+  </p-dialog>
+</div>

@@ -31,7 +31,7 @@ import { OrdersService } from "../../../core/services/orders.service";
     ConfirmDialogModule
   ],
   template: `
-    <div class="p-4">
+    <div class="p-4 m-4">
       <p-toast />
       <p-confirmDialog />
 

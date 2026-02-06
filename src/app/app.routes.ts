@@ -48,11 +48,11 @@ export const routes: Routes = [
       //   canActivate: [roleGuard([EmployeeRole.ADMIN])],
       //   loadComponent: () => import('./features/employees/pages/employee-list.component').then(m => m.EmployeeListComponent)
       // },
-      // {
-      //   path: 'orders',
-      //   canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER])],
-      //   loadComponent: () => import('./features/orders/pages/order-list.component').then(m => m.OrderListComponent)
-      // },
+      {
+        path: 'employees',
+        canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER])],
+        loadComponent: () => import('./features/employees/employee-list.component/employee-list.component').then(m => m.EmployeeListComponent)
+      },
       {
         path: 'settings',
         loadChildren: () => import('./core/routes/settings.routes').then(m => m.SETTINGS_ROUTES)

@@ -36,7 +36,7 @@ import { OrdersService } from "../../../core/services/orders.service";
     SelectModule
 ],
   template: `
-    <div class="p-4">
+    <div class="p-4 p-4">
       <p-toast />
       <p-confirmDialog />
 

@@ -3,7 +3,7 @@ import { environment } from "../../../environnments/environment";
 
 @Injectable({ providedIn: 'root' })
 export class ApiConfig {
-  private readonly baseUrl = environment.apiUrl || 'http://localhost:8080/api';
+  private readonly baseUrl = environment.apiUrl || 'http://localhost:8080/api/v1';
   private readonly apiDocUrl = `${this.baseUrl}/v3/api-docs`;
 
   getBaseUrl(): string {

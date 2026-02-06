@@ -257,7 +257,7 @@ export class ShiftReportsService {
   // Get today's shift for current user
   getCurrentShift(): Observable<ShiftReport | null> {
     return this.http.get<ApiResponse<ShiftReport>>(
-      this.apiConfig.getEndpoint('/shift-reports/current')
+      this.apiConfig.getEndpoint('/shift-reports/cashier/open')
     ).pipe(
       map(response => response.data),
       catchError(() => of(null)) // Return null if no current shift
