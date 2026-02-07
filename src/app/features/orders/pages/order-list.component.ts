@@ -16,6 +16,16 @@ import { ToolbarModule } from "primeng/toolbar";
 import { EmployeeRole, Order, OrderStatus, PaymentStatus } from "../../../core/models";
 import { AuthService } from "../../../core/services/auth.service";
 import { OrdersService } from "../../../core/services/orders.service";
+import {
+  getStatusLabel as getStatusLabelUtil,
+  getStatusSeverity as getStatusSeverityUtil,
+  StatusUiMap
+} from '../../../core/utils/status-ui.utils';
+
+import { ORDER_STATUS_UI } from '../../../core/config/order-status.config';
+import { PAYMENT_STATUS_UI } from '../../../core/config/payment-status.config';
+import { PosPermissionService } from "../../../core/services/pos-permission.service";
+
 
 @Component({
   selector: 'app-order-list',
@@ -255,6 +265,7 @@ export class OrderListComponent implements OnInit {
   private confirmationService = inject(ConfirmationService);
   private messageService = inject(MessageService);
   private authService = inject(AuthService);
+  private posPermissionService=inject(PosPermissionService);
   private router = inject(Router);
 
   // Signals from service
@@ -302,7 +313,7 @@ export class OrderListComponent implements OnInit {
 
   // Permission checks
   canCreateOrder(): boolean {
-    return this.authService.hasRole([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER]);
+    return this.posPermissionService.canCreateOrder();
   }
 
   canProcessPayment(order: Order): boolean {
@@ -329,54 +340,24 @@ export class OrderListComponent implements OnInit {
            order.status !== OrderStatus.COMPLETED;
   }
 
-  // UI Helpers
-  getStatusLabel(status: OrderStatus): string {
-    switch (status) {
-      case OrderStatus.PENDING: return 'En attente';
-      case OrderStatus.PROCESSING: return 'En traitement';
-      case OrderStatus.READY: return 'Prête';
-      case OrderStatus.COMPLETED: return 'Terminée';
-      case OrderStatus.CANCELLED: return 'Annulée';
-      case OrderStatus.REFUNDED: return 'Remboursée';
-      default: return status;
-    }
-  }
 
-  getStatusSeverity(status: OrderStatus): "warn" | "info" | "danger"| "secondary" | "success" {
-    switch (status) {
-      case OrderStatus.PENDING: return 'warn';
-      case OrderStatus.PROCESSING: return 'info';
-      case OrderStatus.READY: return 'info';
-      case OrderStatus.COMPLETED: return 'success';
-      case OrderStatus.CANCELLED: return 'danger';
-      case OrderStatus.REFUNDED: return 'secondary';
-      default: return 'info';
-    }
-  }
+// UI Helpers (delegation)
+getStatusLabel(status: OrderStatus): string {
+  return getStatusLabelUtil(status, ORDER_STATUS_UI);
+}
 
-  getPaymentStatusLabel(status: PaymentStatus): string {
-    switch (status) {
-      case PaymentStatus.PENDING: return 'En attente';
-      case PaymentStatus.PAID: return 'Payée';
-      case PaymentStatus.PARTIALLY_PAID: return 'Partiellement payée';
-      case PaymentStatus.FAILED: return 'Échouée';
-      case PaymentStatus.REFUNDED: return 'Remboursée';
-      case PaymentStatus.CANCELLED: return 'Annulée';
-      default: return status;
-    }
-  }
+getStatusSeverity(status: OrderStatus) {
+  return getStatusSeverityUtil(status, ORDER_STATUS_UI);
+}
 
-  getPaymentStatusSeverity(status: PaymentStatus): "warn" | "info" | "danger"| "secondary" | "success"  {
-    switch (status) {
-      case PaymentStatus.PENDING: return 'warn';
-      case PaymentStatus.PAID: return 'success';
-      case PaymentStatus.PARTIALLY_PAID: return 'info';
-      case PaymentStatus.FAILED: return 'danger';
-      case PaymentStatus.REFUNDED: return 'secondary';
-      case PaymentStatus.CANCELLED: return 'danger';
-      default: return 'info';
-    }
-  }
+getPaymentStatusLabel(status: PaymentStatus): string {
+  return getStatusLabelUtil(status, PAYMENT_STATUS_UI);
+}
+
+getPaymentStatusSeverity(status: PaymentStatus) {
+  return getStatusSeverityUtil(status, PAYMENT_STATUS_UI);
+}
+
 
   // Event Handlers
   loadOrders() {
@@ -488,3 +469,5 @@ export class OrderListComponent implements OnInit {
     });
   }
 }
+
+

@@ -153,6 +153,9 @@ export class ProductsListComponent implements OnInit {
       filters
     );
   }
+  getLadedProducts(){
+    return this.loadProducts();
+  }
 
   onFilterChange() {
     this.productsService.setPage(1);

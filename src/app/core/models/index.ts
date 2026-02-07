@@ -19,7 +19,10 @@ export enum StoreStatus {
   CLOSED = 'CLOSED',
   PENDING = 'PENDING'
 }
-
+export interface CartItem {
+  product: Product;
+  quantity: number;
+}
 export enum ShiftStatus {
   OPEN = 'OPEN',
   CLOSED = 'CLOSED',
@@ -174,12 +177,13 @@ export interface Product {
   sku: string;
   barcode: string;
   price: number;
+  categoryId:string;
   quantity: number;
   imageUrl: string;
-  category:Category;
+  categoryName:string;
   inStock: boolean;
   minStock: number;
-  isActive?:boolean;
+  isActive:boolean;
   totalStock: number;
   createdAt: string;
   
@@ -291,6 +295,7 @@ export interface ShiftReport {
   notes: string;
   cashierId:string;
   cashierName:string;
+  storeAddress?: string;
   storeId:string;
   storeName:string;
   startTime: string;

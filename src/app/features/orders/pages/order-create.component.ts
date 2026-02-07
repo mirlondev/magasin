@@ -15,6 +15,7 @@ import { TagModule } from "primeng/tag";
 import { ToastModule } from "primeng/toast";
 import { ConfirmDialogModule } from "primeng/confirmdialog";
 import { RippleModule } from "primeng/ripple";
+import { PaginatorModule } from "primeng/paginator";
 import { 
   Category, 
   Product, 
@@ -23,7 +24,8 @@ import {
   PaymentMethod, 
   Customer,
   ShiftStatus,
-  EmployeeRole
+  EmployeeRole,
+  CartItem
 } from "../../../core/models";
 import { ProductsService } from "../../../core/services/products.service";
 import { CategoriesService } from "../../../core/services/categories.service";
@@ -32,6 +34,9 @@ import { CustomersService } from "../../../core/services/customers.service";
 import { AuthService } from "../../../core/services/auth.service";
 import { ShiftReportsService } from "../../../core/services/shift-reports.service";
 import { Toolbar } from "primeng/toolbar";
+import { cartCount, cartSubtotal } from "../../../core/utils/cart.utils";
+import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
+import { getStockLabel, getStockSeverity } from "../../../core/utils/status-ui.utils";
 
 @Component({
   selector: 'app-order-create',
@@ -51,8 +56,10 @@ import { Toolbar } from "primeng/toolbar";
     ToastModule,
     ConfirmDialogModule,
     RippleModule,
-    Toolbar
-],
+    Toolbar,
+    XafPipe,
+    PaginatorModule
+  ],
   template: `
 <div class="p-4">
   <p-toast />
@@ -147,7 +154,7 @@ import { Toolbar } from "primeng/toolbar";
                 <input pInputText 
                        type="text" 
                        [(ngModel)]="searchTerm"
-                       (ngModelChange)="onSearch()"
+                       (ngModelChange)="onFilterChange()"
                        placeholder="Nom, SKU, code-barres..."
                        class="w-full" 
                        [disabled]="!canSell()" />
@@ -158,7 +165,7 @@ import { Toolbar } from "primeng/toolbar";
               <label class="block text-sm font-medium mb-2">Catégorie</label>
               <p-select [options]="categoryOptions()"
                        [(ngModel)]="selectedCategoryId"
-                       (onChange)="onCategorySelect($event.value)"
+                       (onChange)="onFilterChange()"
                        class="w-full"
                        [disabled]="!canSell()">
               </p-select>
@@ -172,7 +179,7 @@ import { Toolbar } from "primeng/toolbar";
                 <i class="pi pi-spin pi-spinner text-4xl text-primary mb-4"></i>
                 <p class="text-gray-600">Chargement des produits...</p>
               </div>
-            } @else if (filteredProducts().length === 0) {
+            } @else if (products().length === 0) {
               <div class="text-center py-8">
                 <i class="pi pi-box text-4xl text-gray-400 mb-4"></i>
                 <p class="text-gray-600">Aucun produit trouvé</p>
@@ -180,7 +187,7 @@ import { Toolbar } from "primeng/toolbar";
               </div>
             } @else {
               <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                @for (product of filteredProducts(); track product.productId) {
+                @for (product of products(); track product.productId) {
                   <div class="product-card border rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
                        [class.opacity-50]="!canSell()"
                        [class.cursor-not-allowed]="!canSell()"
@@ -205,7 +212,7 @@ import { Toolbar } from "primeng/toolbar";
                       <div class="font-semibold text-sm truncate mb-1">{{ product.name }}</div>
                       <div class="flex justify-between items-center">
                         <div class="text-xs text-gray-500">{{ product.sku || 'N/A' }}</div>
-                        <div class="font-bold text-primary">{{ product.price | currency:'XAF':'symbol':'1.0-0' }}</div>
+                        <div class="font-bold text-primary">{{ product.price | xaf}}</div>
                       </div>
                       @if (product.quantity > 0) {
                         <div class="text-xs text-gray-500 mt-1">
@@ -215,6 +222,18 @@ import { Toolbar } from "primeng/toolbar";
                     </div>
                   </div>
                 }
+              </div>
+
+              <!-- Pagination -->
+              <div class="mt-4">
+                <p-paginator 
+                  [rows]="pageSize()"
+                  [totalRecords]="total()"
+                  [rowsPerPageOptions]="[12, 24, 48, 96]"
+                  (onPageChange)="onPageChange($event)"
+                  [showCurrentPageReport]="true"
+                  currentPageReportTemplate="Affichage de {first} à {last} sur {totalRecords} produits">
+                </p-paginator>
               </div>
             }
           </div>
@@ -264,7 +283,7 @@ import { Toolbar } from "primeng/toolbar";
                           }
                           <div class="flex-1 min-w-0">
                             <div class="font-medium text-sm truncate">{{ item.product.name }}</div>
-                            <div class="text-xs text-gray-500">{{ item.product.price | currency:'XAF':'symbol':'1.0-0' }}</div>
+                            <div class="text-xs text-gray-500">{{ item.product.price | xaf }}</div>
                           </div>
                         </div>
                       </td>
@@ -284,7 +303,7 @@ import { Toolbar } from "primeng/toolbar";
                         </div>
                       </td>
                       <td class="p-3 text-right">
-                        <div class="font-bold">{{ (item.product.price * item.quantity) | currency:'XAF':'symbol':'1.0-0' }}</div>
+                        <div class="font-bold">{{ (item.product.price * item.quantity) | xaf }}</div>
                       </td>
                       <td class="p-3">
                         <button pButton 
@@ -332,15 +351,15 @@ import { Toolbar } from "primeng/toolbar";
             <div class="space-y-2">
               <div class="flex justify-between">
                 <span class="text-gray-600">Sous-total</span>
-                <span>{{ cartSubtotal() | currency:'XAF':'symbol':'1.0-0' }}</span>
+                <span>{{ cartSubtotal() | xaf }}</span>
               </div>
               <div class="flex justify-between">
                 <span class="text-gray-600">Remise</span>
-                <span class="text-red-500">-{{ discountAmount() | currency:'XAF':'symbol':'1.0-0' }}</span>
+                <span class="text-red-500">-{{ discountAmount() | xaf }}</span>
               </div>
               <div class="flex justify-between border-t pt-2 mt-2">
                 <span class="font-bold text-lg">Total</span>
-                <span class="font-bold text-lg text-primary">{{ cartTotal() | currency:'XAF':'symbol':'1.0-0' }}</span>
+                <span class="font-bold text-lg text-primary">{{ cartTotal() | xaf }}</span>
               </div>
             </div>
 
@@ -507,15 +526,15 @@ import { Toolbar } from "primeng/toolbar";
         <div class="space-y-2">
           <div class="flex justify-between">
             <span>Sous-total:</span>
-            <span>{{ cartSubtotal() | currency:'XAF':'symbol':'1.0-0' }}</span>
+            <span>{{ cartSubtotal() | xaf }}</span>
           </div>
           <div class="flex justify-between">
             <span>Remise:</span>
-            <span class="text-red-500">-{{ discountAmount() | currency:'XAF':'symbol':'1.0-0' }}</span>
+            <span class="text-red-500">-{{ discountAmount() | xaf }}</span>
           </div>
           <div class="flex justify-between border-t pt-2 mt-2">
             <span class="font-bold">Total:</span>
-            <span class="font-bold text-lg">{{ cartTotal() | currency:'XAF':'symbol':'1.0-0' }}</span>
+            <span class="font-bold text-lg">{{ cartTotal() | xaf }}</span>
           </div>
         </div>
       </div>
@@ -553,7 +572,7 @@ import { Toolbar } from "primeng/toolbar";
             <div class="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
               <div class="flex justify-between items-center">
                 <span class="font-semibold">Monnaie à rendre:</span>
-                <span class="text-lg font-bold text-green-600">{{ changeAmount() | currency:'XAF':'symbol':'1.0-0' }}</span>
+                <span class="text-lg font-bold text-green-600">{{ changeAmount() | xaf }}</span>
               </div>
             </div>
           }
@@ -656,46 +675,25 @@ export class OrderCreateComponent implements OnInit {
   // Signals from service
   products = this.productsService.products;
   loadingData = this.productsService.loading;
+  total = this.productsService.total;
+  pageSize = this.productsService.pageSize;
+  
   activeCategories = this.categoriesService.activeCategories;
   selectedCategoryId = signal<string>('all');
   searchTerm = '';
 
   // Cart
-  cart = signal<{ product: Product; quantity: number }[]>([]);
   selectedCustomer = signal<Customer | null>(null);
   discountAmount = signal(0);
   taxRate = signal(0.20);
 
   // Computed values
-  cartCount = computed(() => this.cart().reduce((acc, item) => acc + item.quantity, 0));
-  cartSubtotal = computed(() => this.cart().reduce((acc, item) => acc + (item.product.price * item.quantity), 0));
+  cart = signal<CartItem[]>([]);
+
+  cartCount = computed(() => cartCount(this.cart()));
+  cartSubtotal = computed(() => cartSubtotal(this.cart()));
   taxAmount = computed(() => (this.cartSubtotal() - this.discountAmount()) * this.taxRate());
   cartTotal = computed(() => this.cartSubtotal() - this.discountAmount());
-
-  filteredProducts = computed(() => {
-    const allProducts = this.products();
-    
-    if (!allProducts || allProducts.length === 0) {
-      return [];
-    }
-    
-    let items = [...allProducts];
-    
-    if (this.selectedCategoryId() && this.selectedCategoryId() !== 'all') {
-      items = items.filter(p => p.category?.categoryId === this.selectedCategoryId());
-    }
-    
-    if (this.searchTerm && this.searchTerm.trim()) {
-      const search = this.searchTerm.toLowerCase().trim();
-      items = items.filter(p => 
-        (p.name && p.name.toLowerCase().includes(search)) || 
-        (p.sku && p.sku.toLowerCase().includes(search)) || 
-        (p.barcode && p.barcode.toLowerCase().includes(search))
-      );
-    }
-    
-    return items.filter(p => p.isActive !== false);
-  });
 
   // Dialogs
   showCustomerDialog = false;
@@ -759,19 +757,6 @@ export class OrderCreateComponent implements OnInit {
     const user = this.currentUser();
     console.log('Current user:', user);
     
-  //   if (user) {
-  //     this.currentUserName = user.username || '';
-  //     this.currentStoreName = user.storeName || '';
-  //     this.currentStoreId = user.storeId || '';
-  //   } else {
-  //     this.messageService.add({
-  //       severity: 'error',
-  //       summary: 'Erreur',
-  //       detail: 'Utilisateur non connecté'
-  //     });
-  //     this.router.navigate(['/login']);
-  //   }
-  // }
     if (this.currentShift()) {
       this.currentUserName.set(this.currentShift()?.cashierName || '');
       this.currentStoreName.set(this.currentShift()?.storeName || '');
@@ -785,8 +770,9 @@ export class OrderCreateComponent implements OnInit {
       this.router.navigate(['/login']);
     }
   }
+
   private loadInitialData() {
-    console.log('Loading initial data...');
+    console.log('Loading initial products...', this.loadProducts());
     this.loadProducts();
     this.loadCategories();
     this.loadCurrentShift();
@@ -794,7 +780,18 @@ export class OrderCreateComponent implements OnInit {
 
   loadProducts() {
     console.log('loadProducts called');
-    this.productsService.loadProducts(1, 1000);
+    const filters: any = {};
+    
+    if (this.searchTerm) filters.search = this.searchTerm;
+    if (this.selectedCategoryId() && this.selectedCategoryId() !== 'all') {
+      filters.categoryId = this.selectedCategoryId();
+    }
+
+    this.productsService.loadProducts(
+      this.productsService.page(),
+      this.pageSize(),
+      filters
+    );
   }
 
   loadCategories() {
@@ -826,9 +823,28 @@ export class OrderCreateComponent implements OnInit {
     });
   }
 
+  // Filter and Pagination handlers
+  onFilterChange() {
+    this.productsService.setPage(1);
+    this.loadProducts();
+  }
+
+  onPageChange(event: any) {
+    const page = (event.first / event.rows) + 1;
+    const rows = event.rows;
+
+    if (this.pageSize() !== rows) {
+      this.productsService.setPageSize(rows);
+    } else if (this.productsService.page() !== page) {
+      this.productsService.setPage(page);
+    }
+    
+    this.loadProducts();
+  }
+
   // Validation Methods
   hasValidStoreAssignment(): boolean {
-    return !!this.currentStoreId;
+    return !!this.currentStoreId();
   }
 
   canOpenShift(): boolean {
@@ -905,15 +921,6 @@ export class OrderCreateComponent implements OnInit {
         });
       }
     });
-  }
-
-  onCategorySelect(categoryId: string) {
-    console.log('Category selected:', categoryId);
-    this.selectedCategoryId.set(categoryId);
-  }
-
-  onSearch() {
-    console.log('Search term:', this.searchTerm);
   }
 
   addToCart(product: Product) {
@@ -1204,16 +1211,10 @@ export class OrderCreateComponent implements OnInit {
   }
 
   getStockSeverity(product: Product): 'danger' | 'warn' | 'success' {
-    if (!product) return 'danger';
-    if (product.quantity <= 0) return 'danger';
-    if (product.quantity <= (product.minStock || 5)) return 'warn';
-    return 'success';
+    return getStockSeverity(product);
   }
 
   getStockLabel(product: Product): string {
-    if (!product) return 'N/A';
-    if (product.quantity <= 0) return 'Rupture';
-    if (product.quantity <= (product.minStock || 5)) return 'Faible';
-    return 'En stock';
+    return getStockLabel(product);
   }
 }

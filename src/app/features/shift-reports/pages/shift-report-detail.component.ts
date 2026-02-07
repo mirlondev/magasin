@@ -243,14 +243,13 @@ import { ShiftReportsService } from "../../../core/services/shift-reports.servic
                 
                 <div>
                   <div class="text-sm text-gray-500">Caissier</div>
-                  <div class="font-medium mt-1">{{ shift()!.cashier.username }}</div>
-                  <div class="text-sm text-gray-500">{{ shift()!.cashier.email }}</div>
+                  <div class="font-medium mt-1">{{ shift()!.cashierName }}</div>
                 </div>
                 
                 <div>
                   <div class="text-sm text-gray-500">Magasin</div>
-                  <div class="font-medium mt-1">{{ shift()!.store.name }}</div>
-                  <div class="text-sm text-gray-500">{{ shift()!.store.address }}, {{ shift()!.store.city }}</div>
+                  <div class="font-medium mt-1">{{ shift()?.storeName }}</div>
+                  <div class="text-sm text-gray-500">{{ shift()?.storeAddress }}</div>
                 </div>
                 
                 <div>

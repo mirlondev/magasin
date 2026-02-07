@@ -52,6 +52,7 @@ export class ProductsService {
         return of({ items: [], total: 0, page: 0, size: 0, totalPages: 0 });
       })
     ).subscribe(data => {
+      console.log(data);  
       const items = Array.isArray(data) ? data : (data?.items || []);
       const total = Array.isArray(data) ? data.length : (data?.total || 0);
       const page = Array.isArray(data) ? 1 : (data?.page || 0) + 1;

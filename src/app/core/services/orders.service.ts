@@ -4,6 +4,7 @@ import { Observable, catchError, map, of, tap } from "rxjs";
 import { ApiConfig } from "../../core/api/api.config";
 import { HttpErrorHandler } from "../../core/api/http-error.handler";
 import { ApiResponse, Order, OrderRequest, OrderStatus, PaginatedResponse, PaymentMethod, PaymentStatus } from "../../core/models";
+import { AuthService } from "./auth.service";
 
 interface OrderFilters {
   status?: OrderStatus;
@@ -20,6 +21,8 @@ export class OrdersService {
   private http = inject(HttpClient);
   private apiConfig = inject(ApiConfig);
   private errorHandler = inject(HttpErrorHandler);
+  private authService = inject(AuthService);
+  currentUser = this.authService.currentUser();
 
   // State signals
   orders = signal<Order[]>([]);
