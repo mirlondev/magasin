@@ -289,6 +289,10 @@ export interface ShiftReport {
   closingBalance: number;
   discrepancy: number;
   notes: string;
+  cashierId:string;
+  cashierName:string;
+  storeId:string;
+  storeName:string;
   startTime: string;
   endTime?: string;
   createdAt: string;
@@ -296,6 +300,10 @@ export interface ShiftReport {
   store: Store;
   cashier: User;
 }
+
+ 
+
+
 export enum UserStatus{
   ON_LEAVE= 'ON_LEAVE',
   ACTIVE= 'ACTIVE',

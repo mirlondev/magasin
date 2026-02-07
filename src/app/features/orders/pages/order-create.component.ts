@@ -22,7 +22,8 @@ import {
   OrderItemRequest, 
   PaymentMethod, 
   Customer,
-  ShiftStatus
+  ShiftStatus,
+  EmployeeRole
 } from "../../../core/models";
 import { ProductsService } from "../../../core/services/products.service";
 import { CategoriesService } from "../../../core/services/categories.service";
@@ -77,14 +78,24 @@ import { Toolbar } from "primeng/toolbar";
                  severity="success" 
                  class="mr-2" />
         } @else {
-          <p-tag value="Caisse Fermée" 
-                 severity="danger" 
-                 class="mr-2" />
+          <div class="flex items-center gap-2">
+            <p-tag value="Caisse Fermée" 
+                   severity="danger" 
+                   class="mr-2" />
+            @if (canOpenShift()) {
+              <button pButton 
+                      label="Ouvrir Caisse" 
+                      icon="pi pi-lock-open"
+                      class="p-button-sm p-button-success"
+                      (click)="showOpenShiftDialog = true">
+              </button>
+            }
+          </div>
         }
         
         <div class="text-right">
-          <div class="font-semibold">{{ currentUserName }}</div>
-          <div class="text-sm text-gray-500">{{ currentStoreName }}</div>
+          <div class="font-semibold">{{ currentUserName() }}</div>
+          <div class="text-sm text-gray-500">{{ currentStoreName() }}</div>
         </div>
         
         <button pButton 
@@ -96,6 +107,31 @@ import { Toolbar } from "primeng/toolbar";
       </div>
     </div>
   </p-toolbar>
+
+  <!-- Warning: No shift open -->
+  @if (!currentShift() && !canOpenShift()) {
+    <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+      <div class="flex items-center gap-3">
+        <i class="pi pi-exclamation-triangle text-red-500 text-2xl"></i>
+        <div>
+          <div class="font-semibold text-red-700">Caisse non ouverte</div>
+          <div class="text-sm text-red-600">Vous devez ouvrir une session de caisse pour effectuer des ventes.</div>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (!hasValidStoreAssignment()) {
+    <div class="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+      <div class="flex items-center gap-3">
+        <i class="pi pi-exclamation-circle text-yellow-500 text-2xl"></i>
+        <div>
+          <div class="font-semibold text-yellow-700">Aucun magasin assigné</div>
+          <div class="text-sm text-yellow-600">Veuillez contacter l'administrateur pour qu'un magasin vous soit assigné.</div>
+        </div>
+      </div>
+    </div>
+  }
 
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
     <!-- Left Column - Product Selection -->
@@ -113,7 +149,8 @@ import { Toolbar } from "primeng/toolbar";
                        [(ngModel)]="searchTerm"
                        (ngModelChange)="onSearch()"
                        placeholder="Nom, SKU, code-barres..."
-                       class="w-full" />
+                       class="w-full" 
+                       [disabled]="!canSell()" />
               </div>
             </div>
             
@@ -122,7 +159,8 @@ import { Toolbar } from "primeng/toolbar";
               <p-select [options]="categoryOptions()"
                        [(ngModel)]="selectedCategoryId"
                        (onChange)="onCategorySelect($event.value)"
-                       class="w-full">
+                       class="w-full"
+                       [disabled]="!canSell()">
               </p-select>
             </div>
           </div>
@@ -144,7 +182,9 @@ import { Toolbar } from "primeng/toolbar";
               <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 @for (product of filteredProducts(); track product.productId) {
                   <div class="product-card border rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
-                       (click)="addToCart(product)">
+                       [class.opacity-50]="!canSell()"
+                       [class.cursor-not-allowed]="!canSell()"
+                       (click)="canSell() && addToCart(product)">
                     <div class="aspect-square bg-gray-100 relative overflow-hidden">
                       @if (getProductImage(product)) {
                         <img [src]="getProductImage(product)" 
@@ -165,7 +205,7 @@ import { Toolbar } from "primeng/toolbar";
                       <div class="font-semibold text-sm truncate mb-1">{{ product.name }}</div>
                       <div class="flex justify-between items-center">
                         <div class="text-xs text-gray-500">{{ product.sku || 'N/A' }}</div>
-                        <div class="font-bold text-primary">{{ product.price | currency:'EUR':'symbol':'1.2-2' }}</div>
+                        <div class="font-bold text-primary">{{ product.price | currency:'XAF':'symbol':'1.0-0' }}</div>
                       </div>
                       @if (product.quantity > 0) {
                         <div class="text-xs text-gray-500 mt-1">
@@ -224,7 +264,7 @@ import { Toolbar } from "primeng/toolbar";
                           }
                           <div class="flex-1 min-w-0">
                             <div class="font-medium text-sm truncate">{{ item.product.name }}</div>
-                            <div class="text-xs text-gray-500">{{ item.product.price | currency:'EUR':'symbol':'1.2-2' }}</div>
+                            <div class="text-xs text-gray-500">{{ item.product.price | currency:'XAF':'symbol':'1.0-0' }}</div>
                           </div>
                         </div>
                       </td>
@@ -244,7 +284,7 @@ import { Toolbar } from "primeng/toolbar";
                         </div>
                       </td>
                       <td class="p-3 text-right">
-                        <div class="font-bold">{{ (item.product.price * item.quantity) | currency:'EUR':'symbol':'1.2-2' }}</div>
+                        <div class="font-bold">{{ (item.product.price * item.quantity) | currency:'XAF':'symbol':'1.0-0' }}</div>
                       </td>
                       <td class="p-3">
                         <button pButton 
@@ -292,15 +332,15 @@ import { Toolbar } from "primeng/toolbar";
             <div class="space-y-2">
               <div class="flex justify-between">
                 <span class="text-gray-600">Sous-total</span>
-                <span>{{ cartSubtotal() | currency:'EUR':'symbol':'1.2-2' }}</span>
+                <span>{{ cartSubtotal() | currency:'XAF':'symbol':'1.0-0' }}</span>
               </div>
               <div class="flex justify-between">
                 <span class="text-gray-600">Remise</span>
-                <span class="text-red-500">-{{ discountAmount() | currency:'EUR':'symbol':'1.2-2' }}</span>
+                <span class="text-red-500">-{{ discountAmount() | currency:'XAF':'symbol':'1.0-0' }}</span>
               </div>
               <div class="flex justify-between border-t pt-2 mt-2">
                 <span class="font-bold text-lg">Total</span>
-                <span class="font-bold text-lg text-primary">{{ cartTotal() | currency:'EUR':'symbol':'1.2-2' }}</span>
+                <span class="font-bold text-lg text-primary">{{ cartTotal() | currency:'XAF':'symbol':'1.0-0' }}</span>
               </div>
             </div>
 
@@ -310,13 +350,84 @@ import { Toolbar } from "primeng/toolbar";
                     icon="pi pi-credit-card" 
                     class="w-full p-button-success mt-4"
                     (click)="showCheckout()"
-                    [disabled]="cartCount() === 0 || !canSell()">
+                    [disabled]="!canProcessPayment()">
             </button>
+            
+            @if (!canProcessPayment() && cartCount() > 0) {
+              <div class="text-center text-sm text-red-500">
+                @if (!currentShift()) {
+                  Ouvrez une session de caisse pour continuer
+                } @else if (!hasValidStoreAssignment()) {
+                  Magasin non assigné
+                }
+              </div>
+            }
           }
         </div>
       </p-card>
     </div>
   </div>
+
+  <!-- Open Shift Dialog -->
+  <p-dialog header="Ouvrir une session de caisse" 
+            [(visible)]="showOpenShiftDialog" 
+            [modal]="true"
+            [style]="{ width: '500px' }">
+    <div class="space-y-4">
+      <div>
+        <label class="block font-medium mb-2">Magasin</label>
+        <input pInputText 
+               [value]="currentStoreName()" 
+               disabled
+               class="w-full" />
+      </div>
+      
+      <div>
+        <label class="block font-medium mb-2">Caissier</label>
+        <input pInputText 
+               [value]="currentUserName()" 
+               disabled
+               class="w-full" />
+      </div>
+      
+      <div>
+        <label class="block font-medium mb-2">Montant d'ouverture (XAF) *</label>
+        <p-inputNumber [(ngModel)]="openingBalance"
+                       mode="decimal"
+                       [minFractionDigits]="0"
+                       [maxFractionDigits]="0"
+                       [min]="0"
+                       class="w-full">
+        </p-inputNumber>
+      </div>
+      
+      <div>
+        <label class="block font-medium mb-2">Notes (optionnel)</label>
+        <textarea pInputTextarea 
+                  [(ngModel)]="openingNotes"
+                  rows="3"
+                  class="w-full"
+                  placeholder="Notes optionnelles...">
+        </textarea>
+      </div>
+    </div>
+    
+    <ng-template pTemplate="footer">
+      <button pButton 
+              label="Annuler" 
+              class="p-button-text"
+              (click)="showOpenShiftDialog = false">
+      </button>
+      <button pButton 
+              label="Ouvrir la caisse" 
+              icon="pi pi-lock-open" 
+              class="p-button-success"
+              (click)="openShift()"
+              [loading]="openingShift()"
+              [disabled]="openingBalance <= 0">
+      </button>
+    </ng-template>
+  </p-dialog>
 
   <!-- Customer Selection Dialog -->
   <p-dialog header="Sélectionner un client" 
@@ -372,21 +483,39 @@ import { Toolbar } from "primeng/toolbar";
             [modal]="true"
             [style]="{ width: '600px' }">
     <div class="space-y-6">
+      <!-- Session Info -->
+      <div class="bg-blue-50 p-3 rounded-lg">
+        <div class="grid grid-cols-2 gap-2 text-sm">
+          <div>
+            <span class="text-gray-600">Caisse:</span>
+            <span class="font-semibold ml-2">{{ currentShift()?.shiftNumber }}</span>
+          </div>
+          <div>
+            <span class="text-gray-600">Magasin:</span>
+            <span class="font-semibold ml-2">{{ currentStoreName() }}</span>
+          </div>
+          <div>
+            <span class="text-gray-600">Caissier:</span>
+            <span class="font-semibold ml-2">{{ currentUserName() }}</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Order Summary -->
       <div class="bg-gray-50 p-4 rounded-lg">
         <h3 class="font-semibold mb-3">Récapitulatif de la commande</h3>
         <div class="space-y-2">
           <div class="flex justify-between">
             <span>Sous-total:</span>
-            <span>{{ cartSubtotal() | currency:'EUR':'symbol':'1.2-2' }}</span>
+            <span>{{ cartSubtotal() | currency:'XAF':'symbol':'1.0-0' }}</span>
           </div>
           <div class="flex justify-between">
             <span>Remise:</span>
-            <span class="text-red-500">-{{ discountAmount() | currency:'EUR':'symbol':'1.2-2' }}</span>
+            <span class="text-red-500">-{{ discountAmount() | currency:'XAF':'symbol':'1.0-0' }}</span>
           </div>
           <div class="flex justify-between border-t pt-2 mt-2">
             <span class="font-bold">Total:</span>
-            <span class="font-bold text-lg">{{ cartTotal() | currency:'EUR':'symbol':'1.2-2' }}</span>
+            <span class="font-bold text-lg">{{ cartTotal() | currency:'XAF':'symbol':'1.0-0' }}</span>
           </div>
         </div>
       </div>
@@ -410,10 +539,11 @@ import { Toolbar } from "primeng/toolbar";
       <!-- Cash Payment Details -->
       @if (paymentMethod === PaymentMethod.CASH) {
         <div class="border-t pt-4">
-          <label class="block font-medium mb-2">Montant reçu</label>
+          <label class="block font-medium mb-2">Montant reçu (XAF)</label>
           <p-inputNumber [(ngModel)]="amountPaid"
-                         mode="currency"
-                         currency="EUR"
+                         mode="decimal"
+                         [minFractionDigits]="0"
+                         [maxFractionDigits]="0"
                          [min]="cartTotal()"
                          (onInput)="calculateChange()"
                          class="w-full">
@@ -423,7 +553,7 @@ import { Toolbar } from "primeng/toolbar";
             <div class="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
               <div class="flex justify-between items-center">
                 <span class="font-semibold">Monnaie à rendre:</span>
-                <span class="text-lg font-bold text-green-600">{{ changeAmount() | currency:'EUR':'symbol':'1.2-2' }}</span>
+                <span class="text-lg font-bold text-green-600">{{ changeAmount() | currency:'XAF':'symbol':'1.0-0' }}</span>
               </div>
             </div>
           }
@@ -454,7 +584,7 @@ import { Toolbar } from "primeng/toolbar";
               class="p-button-success"
               (click)="processSale()"
               [loading]="submitting()"
-              [disabled]="paymentMethod === PaymentMethod.CASH && amountPaid < cartTotal()">
+              [disabled]="!canValidateSale()">
       </button>
     </ng-template>
   </p-dialog>
@@ -465,12 +595,12 @@ import { Toolbar } from "primeng/toolbar";
   transition: all 0.2s ease;
 }
 
-.product-card:hover {
+.product-card:hover:not(.opacity-50) {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.product-card:active {
+.product-card:active:not(.opacity-50) {
   transform: translateY(0);
 }
 
@@ -520,9 +650,10 @@ export class OrderCreateComponent implements OnInit {
   // State
   loading = signal(false);
   submitting = signal(false);
+  openingShift = signal(false);
   currentShift = this.shiftReportsService.selectedShiftReport;
   
-  // Signals from service (Pattern as in ProductsListComponent)
+  // Signals from service
   products = this.productsService.products;
   loadingData = this.productsService.loading;
   activeCategories = this.categoriesService.activeCategories;
@@ -544,19 +675,16 @@ export class OrderCreateComponent implements OnInit {
   filteredProducts = computed(() => {
     const allProducts = this.products();
     
-    // Safety check - return empty array if products not loaded yet
     if (!allProducts || allProducts.length === 0) {
       return [];
     }
     
-    let items = [...allProducts]; // Create a copy
+    let items = [...allProducts];
     
-    // Filter by category
     if (this.selectedCategoryId() && this.selectedCategoryId() !== 'all') {
       items = items.filter(p => p.category?.categoryId === this.selectedCategoryId());
     }
     
-    // Filter by search term
     if (this.searchTerm && this.searchTerm.trim()) {
       const search = this.searchTerm.toLowerCase().trim();
       items = items.filter(p => 
@@ -566,15 +694,19 @@ export class OrderCreateComponent implements OnInit {
       );
     }
     
-    // Filter active products only
     return items.filter(p => p.isActive !== false);
   });
 
   // Dialogs
   showCustomerDialog = false;
   showCheckoutDialog = false;
+  showOpenShiftDialog = false;
   customerSearchQuery = '';
   customers = signal<Customer[]>([]);
+
+  // Shift opening
+  openingBalance = 0;
+  openingNotes = '';
 
   // Payment
   PaymentMethod = PaymentMethod;
@@ -590,8 +722,10 @@ export class OrderCreateComponent implements OnInit {
   ];
 
   // User Info
-  currentUserName = '';
-  currentStoreName = '';
+  currentUser = this.authService.currentUser;
+  currentUserName = signal('');
+  currentStoreName = signal('');
+  currentStoreId = signal('');
 
   // Category options for select
   categoryOptions = computed(() => {
@@ -622,15 +756,35 @@ export class OrderCreateComponent implements OnInit {
   }
 
   private initializeUserInfo() {
-    const user = this.authService.currentUser();
+    const user = this.currentUser();
     console.log('Current user:', user);
     
-    if (user) {
-      this.currentUserName = user.username || '';
-      this.currentStoreName = user.storeName || '';
+  //   if (user) {
+  //     this.currentUserName = user.username || '';
+  //     this.currentStoreName = user.storeName || '';
+  //     this.currentStoreId = user.storeId || '';
+  //   } else {
+  //     this.messageService.add({
+  //       severity: 'error',
+  //       summary: 'Erreur',
+  //       detail: 'Utilisateur non connecté'
+  //     });
+  //     this.router.navigate(['/login']);
+  //   }
+  // }
+    if (this.currentShift()) {
+      this.currentUserName.set(this.currentShift()?.cashierName || '');
+      this.currentStoreName.set(this.currentShift()?.storeName || '');
+      this.currentStoreId.set(this.currentShift()?.storeId || '');
+    } else {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Erreur',
+        detail: 'Utilisateur non connecté'
+      });
+      this.router.navigate(['/login']);
     }
   }
-
   private loadInitialData() {
     console.log('Loading initial data...');
     this.loadProducts();
@@ -640,7 +794,6 @@ export class OrderCreateComponent implements OnInit {
 
   loadProducts() {
     console.log('loadProducts called');
-    // Load all active products for POS
     this.productsService.loadProducts(1, 1000);
   }
 
@@ -652,6 +805,7 @@ export class OrderCreateComponent implements OnInit {
   refreshData() {
     this.loadProducts();
     this.loadCategories();
+    this.loadCurrentShift();
     this.messageService.add({
       severity: 'info',
       summary: 'Actualisation',
@@ -672,9 +826,85 @@ export class OrderCreateComponent implements OnInit {
     });
   }
 
+  // Validation Methods
+  hasValidStoreAssignment(): boolean {
+    return !!this.currentStoreId;
+  }
+
+  canOpenShift(): boolean {
+    const user = this.currentUser();
+    return this.hasValidStoreAssignment() && 
+           this.authService.hasRole([EmployeeRole.CASHIER, EmployeeRole.STORE_ADMIN, EmployeeRole.ADMIN]);
+  }
+
   canSell(): boolean {
     const shift = this.currentShift();
-    return shift?.status === ShiftStatus.OPEN;
+    return this.hasValidStoreAssignment() && 
+           shift?.status === ShiftStatus.OPEN;
+  }
+
+  canProcessPayment(): boolean {
+    return this.canSell() && this.cartCount() > 0;
+  }
+
+  canValidateSale(): boolean {
+    if (this.paymentMethod === PaymentMethod.CASH) {
+      return this.amountPaid >= this.cartTotal();
+    }
+    return true;
+  }
+
+  // Shift Management
+  openShift() {
+    if (!this.hasValidStoreAssignment()) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Erreur',
+        detail: 'Aucun magasin assigné'
+      });
+      return;
+    }
+
+    if (this.openingBalance <= 0) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Montant invalide',
+        detail: 'Le montant d\'ouverture doit être supérieur à 0'
+      });
+      return;
+    }
+
+    this.openingShift.set(true);
+
+    this.shiftReportsService.openShift({
+      storeId: this.currentStoreId(),
+      openingBalance: this.openingBalance,
+      notes: this.openingNotes || undefined
+    }).subscribe({
+      next: (shift) => {
+        this.openingShift.set(false);
+        this.showOpenShiftDialog = false;
+        this.shiftReportsService.selectedShiftReport.set(shift);
+        this.openingBalance = 0;
+        this.openingNotes = '';
+        
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Caisse ouverte',
+          detail: `Session ${shift.shiftNumber} ouverte avec succès`,
+          life: 5000
+        });
+      },
+      error: (error) => {
+        this.openingShift.set(false);
+        console.error('Error opening shift:', error);
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erreur',
+          detail: 'Erreur lors de l\'ouverture de la caisse'
+        });
+      }
+    });
   }
 
   onCategorySelect(categoryId: string) {
@@ -684,13 +914,11 @@ export class OrderCreateComponent implements OnInit {
 
   onSearch() {
     console.log('Search term:', this.searchTerm);
-    // Computed signal handles filtering automatically
   }
 
   addToCart(product: Product) {
     console.log('Adding to cart:', product);
     
-    // Validate product
     if (!product || !product.productId) {
       console.error('Invalid product:', product);
       this.messageService.add({ 
@@ -701,7 +929,6 @@ export class OrderCreateComponent implements OnInit {
       return;
     }
 
-    // Check if shift is open
     if (!this.canSell()) {
       this.messageService.add({ 
         severity: 'warn', 
@@ -711,7 +938,6 @@ export class OrderCreateComponent implements OnInit {
       return;
     }
 
-    // Check stock
     if (product.quantity <= 0) {
       this.messageService.add({ 
         severity: 'warn', 
@@ -721,11 +947,10 @@ export class OrderCreateComponent implements OnInit {
       return;
     }
 
-    const currentCart = [...this.cart()]; // Create a copy
+    const currentCart = [...this.cart()];
     const existingIndex = currentCart.findIndex(p => p.product.productId === product.productId);
 
     if (existingIndex > -1) {
-      // Check if we can add more
       const newQuantity = currentCart[existingIndex].quantity + 1;
       if (newQuantity > product.quantity) {
         this.messageService.add({ 
@@ -769,7 +994,6 @@ export class OrderCreateComponent implements OnInit {
     const newQty = item.quantity + delta;
     
     if (newQty > 0) {
-      // Check stock availability
       if (newQty > item.product.quantity) {
         this.messageService.add({ 
           severity: 'warn', 
@@ -842,7 +1066,16 @@ export class OrderCreateComponent implements OnInit {
   processSale() {
     if (this.submitting()) return;
 
-    // Validate cart
+    // Comprehensive validation
+    if (!this.canSell()) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Session invalide',
+        detail: 'Aucune session de caisse ouverte'
+      });
+      return;
+    }
+
     if (this.cart().length === 0) {
       this.messageService.add({
         severity: 'warn',
@@ -852,8 +1085,16 @@ export class OrderCreateComponent implements OnInit {
       return;
     }
 
-    // Validate payment for cash
-    if (this.paymentMethod === PaymentMethod.CASH && this.amountPaid < this.cartTotal()) {
+    if (!this.hasValidStoreAssignment()) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Erreur',
+        detail: 'Magasin non défini'
+      });
+      return;
+    }
+
+    if (!this.canValidateSale()) {
       this.messageService.add({
         severity: 'warn',
         summary: 'Montant insuffisant',
@@ -862,16 +1103,15 @@ export class OrderCreateComponent implements OnInit {
       return;
     }
 
-    // Validate store ID
-    const user = this.authService.currentUser();
-    if (!user?.storeId) {
-      this.messageService.add({
-        severity: 'error',
-        summary: 'Erreur',
-        detail: 'Magasin non défini pour l\'utilisateur'
-      });
-      return;
-    }
+    const user = this.currentUser();
+    const shift = this.currentShift();
+
+    console.log('Processing sale with:', {
+      user: user,
+      shift: shift,
+      storeId: this.currentStoreId(),
+      cart: this.cart()
+    });
 
     this.submitting.set(true);
 
@@ -881,7 +1121,7 @@ export class OrderCreateComponent implements OnInit {
     }));
 
     const orderRequest: OrderRequest = {
-      storeId: user.storeId,
+      storeId: this.currentStoreId(),
       customerId: this.selectedCustomer()?.customerId,
       items: orderItems,
       paymentMethod: this.paymentMethod,
