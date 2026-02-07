@@ -139,9 +139,8 @@ export class EmployeeListComponent implements OnInit {
       default: return status;
     }
   }
-  getFilter(){
-    this.employees().filter(e => !e.active);
-
+  getFilter() {
+    return this.employees().filter(e => !e.active);
   }
   // Event Handlers
   loadEmployees() {

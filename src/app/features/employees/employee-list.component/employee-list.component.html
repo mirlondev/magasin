@@ -133,13 +133,13 @@
           <div class="flex items-center">
             @if (employee.profilePictureUrl) {
               <p-avatar [image]="employee.profilePictureUrl" 
-                       [label]="employee.firstName.charAt(0) + employee.lastName.charAt(0)" 
+                       [label]="(employee.firstName?.charAt(0) || '') + (employee.lastName?.charAt(0) || '')" 
                        shape="circle"
                        size="large"
                        class="mr-3">
               </p-avatar>
             } @else {
-              <p-avatar [label]="employee.firstName.charAt(0) + employee.lastName.charAt(0)" 
+              <p-avatar [label]="(employee.firstName?.charAt(0) || '') + (employee.lastName?.charAt(0) || '')" 
                        shape="circle"
                        size="large"
                        class="mr-3"
@@ -266,7 +266,7 @@
           } @else {
             <div class="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mr-3">
               <span class="text-white font-bold">
-                {{ selectedEmployee.firstName.charAt(0) }}{{ selectedEmployee.lastName.charAt(0) }}
+                {{ selectedEmployee.firstName?.charAt(0) || '' }}{{ selectedEmployee.lastName?.charAt(0) || '' }}
               </span>
             </div>
           }

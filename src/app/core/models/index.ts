@@ -99,6 +99,8 @@ export interface JwtPayload {
 export interface User {
   userId: string;
   username: string;
+  firstName?: string;
+  lastName?: string;
   email: string;
   phone?: string;
   address?: string;
@@ -171,11 +173,13 @@ export interface Product {
   price: number;
   quantity: number;
   imageUrl: string;
+  category:Category;
   inStock: boolean;
+  isActive?:boolean;
   totalStock: number;
   createdAt: string;
+  
   updatedAt: string;
-  category: Category;
 }
 
 export interface Inventory {

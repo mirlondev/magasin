@@ -37,17 +37,19 @@ export const routes: Routes = [
         path: 'shift-reports',
         loadChildren: () => import('./core/routes/shift-reports.routes').then(m => m.SHIFT_REPORTS_ROUTES)
       },
+      {
+        path: 'products',
+        canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER])],
+        loadChildren: () => import('./core/routes/products.routes').then(m => m.PRODUCTS_ROUTES)
+      },
+    {path:'categories',
+      canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER])],
+      loadChildren: () => import('./core/routes/categories.routes').then(m => m.CATEGORIES_ROUTES)
+    
 
-      // {
-      //   path: 'customers',
-      //   canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER])],
-      //   loadComponent: () => import('./features/customers/pages/customer-list.component').then(m => m.CustomerListComponent)
-      // },
-      // {
-      //   path: 'employees',
-      //   canActivate: [roleGuard([EmployeeRole.ADMIN])],
-      //   loadComponent: () => import('./features/employees/pages/employee-list.component').then(m => m.EmployeeListComponent)
-      // },
+    },
+
+
       {
         path: 'employees',
         canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER])],

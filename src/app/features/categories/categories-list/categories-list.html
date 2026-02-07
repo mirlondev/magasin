@@ -1,0 +1,287 @@
+<div class="p-4">
+  <p-toast />
+  <p-confirmDialog />
+
+  <!-- Toolbar -->
+  <p-toolbar>
+    <div class="p-toolbar-group-start">
+      <h2 class="text-2xl font-bold">Gestion des Catégories</h2>
+    </div>
+    
+    <div class="p-toolbar-group-end">
+      <div class="flex items-center gap-4">
+        <div class="flex border rounded-lg overflow-hidden">
+          <button [class]="{'p-button p-component': true, 'p-button-primary': viewMode === 'table', 'p-button-outlined': viewMode !== 'table'}"
+                  (click)="viewMode = 'table'"
+                  class="px-4 py-2 rounded-none">
+            <i class="pi pi-table mr-2"></i>Tableau
+          </button>
+          <button [class]="{'p-button p-component': true, 'p-button-primary': viewMode === 'tree', 'p-button-outlined': viewMode !== 'tree'}"
+                  (click)="viewMode = 'tree'"
+                  class="px-4 py-2 rounded-none">
+            <i class="pi pi-sitemap mr-2"></i>Arborescence
+          </button>
+        </div>
+        
+        @if (canManageCategories()) {
+          <button pButton 
+                  icon="pi pi-plus" 
+                  label="Nouvelle Catégorie" 
+                  class="p-button-success mr-4"
+                  [routerLink]="['/categories/new']">
+          </button>
+        }
+        
+        <button pButton 
+                icon="pi pi-refresh" 
+                label="Actualiser" 
+                class="p-button-outlined"
+                (click)="refresh()"
+                [disabled]="loading()">
+        </button>
+      </div>
+    </div>
+  </p-toolbar>
+
+  <!-- Filters -->
+  <div class="p-4 surface-ground rounded mb-4">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div class="md:col-span-2">
+        <label class="block text-sm font-medium mb-2">Recherche</label>
+        <input pInputText 
+               [(ngModel)]="searchTerm"
+               (ngModelChange)="onFilterChange()"
+               placeholder="Nom, description..." 
+               class="w-full" />
+      </div>
+      
+      <div>
+        <label class="block text-sm font-medium mb-2">Statut</label>
+        <p-select [options]="statusOptions" 
+                    [(ngModel)]="statusFilter"
+                    (onChange)="onFilterChange()"
+                    placeholder="Tous les statuts"
+                    [showClear]="true"
+                    optionLabel="label"
+                    optionValue="value"
+                    class="w-full">
+        </p-select>
+      </div>
+      
+      <div class="flex items-end">
+        <button pButton 
+                icon="pi pi-filter-slash" 
+                label="Réinitialiser" 
+                class="p-button-outlined w-full"
+                style="height: 38px"
+                (click)="resetFilters()">
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Statistics -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div class="surface-card p-4 shadow-2 rounded">
+      <div class="text-500 font-medium">Total Catégories</div>
+      <div class="text-900 text-3xl font-bold">{{ total() }}</div>
+    </div>
+    
+    <div class="surface-card p-4 shadow-2 rounded">
+      <div class="text-500 font-medium">Catégories Actives</div>
+      <div class="text-900 text-3xl font-bold text-green-500">{{ activeCategories().length }}</div>
+    </div>
+    
+    <div class="surface-card p-4 shadow-2 rounded">
+      <div class="text-500 font-medium">Catégories Principales</div>
+      <div class="text-900 text-3xl font-bold text-blue-500">{{ mainCategories().length }}</div>
+    </div>
+  </div>
+
+  <!-- Table View -->
+  @if (viewMode === 'table') {
+    <p-table [value]="categories()" 
+             [lazy]="true" 
+             [paginator]="true" 
+             [rows]="pageSize()"
+             [totalRecords]="total()"
+             [loading]="loading()"
+             (onLazyLoad)="onLazyLoad($event)"
+             [rowsPerPageOptions]="[10, 25, 50]"
+             [tableStyle]="{'min-width': '75rem'}">
+      
+      <ng-template pTemplate="header">
+        <tr>
+          <th>Nom</th>
+          <th>Description</th>
+          <th>Catégorie Parente</th>
+          <th>Nombre de Produits</th>
+          <th>Statut</th>
+          <th>Actions</th>
+        </tr>
+      </ng-template>
+      
+      <ng-template pTemplate="body" let-category>
+        <tr>
+          <td>
+            <div class="flex items-center">
+              <i class="pi pi-folder text-blue-500 text-xl mr-3"></i>
+              <div>
+                <div class="font-semibold">{{ category.name }}</div>
+                <div class="text-sm text-gray-500">ID: {{ category.categoryId }}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div class="max-w-md truncate">{{ category.description || 'Aucune description' }}</div>
+          </td>
+          <td>
+            @if (category.parentCategory) {
+              <div class="flex items-center">
+                <i class="pi pi-level-up text-gray-400 mr-2"></i>
+                <span>{{ getParentCategoryName(category.parentCategory) }}</span>
+              </div>
+            } @else {
+              <span class="text-gray-400">-</span>
+            }
+          </td>
+          <td>
+            <div class="flex items-center">
+              <i class="pi pi-box text-green-500 mr-2"></i>
+              <span class="font-semibold">{{ getProductCount(category) }}</span>
+              <span class="text-sm text-gray-500 ml-2">produits</span>
+            </div>
+          </td>
+          <td>
+            <p-tag [value]="getStatusLabel(category.isActive)" 
+                   [severity]="getStatusSeverity(category.isActive)" />
+          </td>
+          <td>
+            <div class="flex gap-2">
+              <button pButton 
+                      icon="pi pi-eye" 
+                      class="p-button-rounded p-button-info p-button-text"
+                      (click)="viewCategory(category)"
+                      pTooltip="Voir détails">
+              </button>
+              
+              @if (canManageCategories()) {
+                <button pButton 
+                        icon="pi pi-pencil" 
+                        class="p-button-rounded p-button-warning p-button-text"
+                        (click)="editCategory(category)"
+                        [disabled]="loading()"
+                        pTooltip="Modifier">
+                </button>
+                
+                <button pButton 
+                        [icon]="category.isActive ? 'pi pi-ban' : 'pi pi-check'" 
+                        class="p-button-rounded p-button-secondary p-button-text"
+                        (click)="toggleCategoryStatus(category)"
+                        [disabled]="loading()"
+                        [pTooltip]="category.isActive ? 'Désactiver' : 'Activer'">
+                </button>
+                
+                <button pButton 
+                        icon="pi pi-trash" 
+                        class="p-button-rounded p-button-danger p-button-text"
+                        (click)="deleteCategory(category)"
+                        [disabled]="loading()"
+                        pTooltip="Supprimer">
+                </button>
+              }
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+      
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="6" class="text-center p-6">
+            <div class="text-500">
+              @if (loading()) {
+                <p class="text-lg">Chargement en cours...</p>
+              } @else {
+                <div class="flex flex-col items-center">
+                  <i class="pi pi-folder text-5xl text-gray-300 mb-4"></i>
+                  <p class="text-lg mb-2">Aucune catégorie trouvée</p>
+                  <p class="text-gray-500">Essayez de modifier vos filtres ou d'ajouter une nouvelle catégorie</p>
+                </div>
+              }
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  }
+
+  <!-- Tree View -->
+  @if (viewMode === 'tree') {
+    <div class="surface-card p-4 rounded-lg shadow-2">
+      <p-treeTable [value]="getTreeTableData()" 
+                   [scrollable]="true" 
+                   [loading]="loading()"
+                   scrollHeight="500px">
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Nom</th>
+            <th>Description</th>
+            <th>Produits</th>
+            <th>Statut</th>
+            <th>Actions</th>
+          </tr>
+        </ng-template>
+        
+        <ng-template pTemplate="body" let-rowNode let-rowData="rowData">
+          <tr>
+            <td>
+              <div class="flex items-center" [style.padding-left]="rowNode.level * 20 + 'px'">
+                @if (rowNode.children && rowNode.children.length > 0) {
+                  <button type="button" 
+                          [pRowToggler]="rowNode"
+                          class="p-treetable-toggler p-link">
+                    <i [class]="rowNode.expanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'"></i>
+                  </button>
+                } @else {
+                  <span style="width: 20px; display: inline-block;"></span>
+                }
+                <i class="pi pi-folder text-blue-500 mr-2"></i>
+                <span class="font-semibold">{{ rowData.name }}</span>
+              </div>
+            </td>
+            <td>
+              <div class="max-w-md truncate">{{ rowData.description || 'Aucune description' }}</div>
+            </td>
+            <td>
+              <div class="flex items-center">
+                <span class="font-semibold">{{ rowData.productCount || 0 }}</span>
+                <span class="text-sm text-gray-500 ml-1">produits</span>
+              </div>
+            </td>
+            <td>
+              <p-tag [value]="getStatusLabel(rowData.isActive)" 
+                     [severity]="getStatusSeverity(rowData.isActive)" />
+            </td>
+            <td>
+              <div class="flex gap-2">
+                <button pButton 
+                        icon="pi pi-eye" 
+                        class="p-button-rounded p-button-info p-button-text p-button-sm"
+                        (click)="viewCategory(rowData)">
+                </button>
+                
+                @if (canManageCategories()) {
+                  <button pButton 
+                          icon="pi pi-pencil" 
+                          class="p-button-rounded p-button-warning p-button-text p-button-sm"
+                          (click)="editCategory(rowData)">
+                  </button>
+                }
+              </div>
+            </td>
+          </tr>
+        </ng-template>
+      </p-treeTable>
+    </div>
+  }
+</div>
