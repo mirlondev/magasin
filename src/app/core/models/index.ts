@@ -106,11 +106,14 @@ export interface User {
   address?: string;
   password?: string;
   userRole: EmployeeRole;
+  storeId?:string;
+  storeName?: string;
+  storeType?:string;
   active?: boolean;
   lastLogin?: string;
   createdAt?: string;
   updatedAt?: string;
-  assignedStore?: Store;
+  //assignedStore?: Store;
 }
 
 export interface Store {
@@ -175,6 +178,7 @@ export interface Product {
   imageUrl: string;
   category:Category;
   inStock: boolean;
+  minStock: number;
   isActive?:boolean;
   totalStock: number;
   createdAt: string;
@@ -321,6 +325,21 @@ export interface OrderRequest {
   isTaxable?: boolean;
   notes?: string;
 }
+export interface EmployeeRoleResponse {
+  token: string;
+  userId: string;
+  username: string;
+  email: string;
+  userRole: EmployeeRole;
+  storeId?: string;
+  storeName?: string;
+  storeType?: string;
+  status?: UserStatus;
+  lastLogin?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  isActive?: boolean
+}
 
 export interface ShiftReportRequest {
   storeId: string;
@@ -335,6 +354,8 @@ export interface AuthResponse {
   email: string;
   userRole: EmployeeRole;
   message?: string;
+  storeId?: string;
+  storeName?: string;
 }
 
 export interface PaginatedResponse<T> {

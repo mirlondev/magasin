@@ -4,7 +4,7 @@ import { Router } from "@angular/router";
 import { Observable, catchError, map, of, tap } from "rxjs";
 import { ApiConfig } from "../api/api.config";
 import { HttpErrorHandler } from "../api/http-error.handler";
-import { ApiResponse, AuthResponse, EmployeeRole, JwtPayload, LoginRequest, User } from "../models";
+import { ApiResponse, AuthResponse, EmployeeRole, EmployeeRoleResponse, JwtPayload, LoginRequest, User } from "../models";
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -47,12 +47,14 @@ export class AuthService {
   }
 
   // Stocker les informations d'authentification
-  private setAuthData(response: AuthResponse): void {
+  private setAuthData(response: EmployeeRoleResponse): void {
     // Map the flat response to User object
     const userData: User = {
       userId: response.userId,
       username: response.username,
       email: response.email,
+      storeId: response.storeId,
+      storeName: response.storeName,
       userRole: response.userRole as EmployeeRole
     };
     

@@ -87,7 +87,6 @@ export class StoresService {
         const total = Array.isArray(data) ? data.length : (data?.total || 0);
         const page = Array.isArray(data) ? 1 : (data?.page || 0) + 1;
         const size = Array.isArray(data) ? items.length : (data?.size || 10);
-
         this.state.update(s => ({
           ...s,
           items,
