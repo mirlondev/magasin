@@ -17,6 +17,7 @@ import { ToastModule } from "primeng/toast";
 import { EmployeeRole, ShiftStatus } from "../../../core/models";
 import { AuthService } from "../../../core/services/auth.service";
 import { ShiftReportsService } from "../../../core/services/shift-reports.service";
+import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
 
 @Component({
   selector: 'app-shift-report-detail',
@@ -33,8 +34,9 @@ import { ShiftReportsService } from "../../../core/services/shift-reports.servic
     ToastModule,
     ConfirmDialogModule,
     TextareaModule,
-    InputNumberModule
-  ],
+    InputNumberModule,
+    XafPipe
+],
   template: `
     <div class="p-4">
       <p-toast />
@@ -111,29 +113,29 @@ import { ShiftReportsService } from "../../../core/services/shift-reports.servic
                   <div class="space-y-3">
                     <div class="flex justify-between">
                       <span class="text-gray-600">Solde d'ouverture:</span>
-                      <span class="font-semibold">{{ shift()!.openingBalance | currency:'EUR':'symbol':'1.2-2' }}</span>
+                      <span class="font-semibold">{{ shift()!.openingBalance | xaf}}</span>
                     </div>
                     
                     <div class="flex justify-between">
                       <span class="text-gray-600">Total des ventes:</span>
-                      <span class="font-semibold text-green-600">{{ shift()!.totalSales | currency:'EUR':'symbol':'1.2-2' }}</span>
+                      <span class="font-semibold text-green-600">{{ shift()!.totalSales | xaf }}</span>
                     </div>
-                    
+
                     <div class="flex justify-between">
                       <span class="text-gray-600">Total des remboursements:</span>
-                      <span class="font-semibold text-red-600">{{ shift()!.totalRefunds | currency:'EUR':'symbol':'1.2-2' }}</span>
+                      <span class="font-semibold text-red-600">{{ shift()!.totalRefunds | xaf }}</span>
                     </div>
                     
                     <div class="flex justify-between">
                       <span class="text-gray-600">Ventes nettes:</span>
-                      <span class="font-semibold">{{ shift()!.netSales | currency:'EUR':'symbol':'1.2-2' }}</span>
+                      <span class="font-semibold">{{ shift()!.netSales | xaf }}</span>
                     </div>
                     
                     <p-divider />
                     
                     <div class="flex justify-between text-lg font-bold">
                       <span>Solde attendu:</span>
-                      <span>{{ shift()!.expectedBalance | currency:'EUR':'symbol':'1.2-2' }}</span>
+                      <span>{{ shift()!.expectedBalance | xaf }}</span>
                     </div>
                   </div>
                 </div>
@@ -144,12 +146,12 @@ import { ShiftReportsService } from "../../../core/services/shift-reports.servic
                   <div class="space-y-3">
                     <div class="flex justify-between">
                       <span class="text-gray-600">Solde réel en caisse:</span>
-                      <span class="font-semibold">{{ shift()!.actualBalance | currency:'EUR':'symbol':'1.2-2' }}</span>
+                      <span class="font-semibold">{{ shift()!.actualBalance | xaf }}</span>
                     </div>
                     
                     <div class="flex justify-between">
                       <span class="text-gray-600">Solde de fermeture:</span>
-                      <span class="font-semibold">{{ shift()!.closingBalance | currency:'EUR':'symbol':'1.2-2' }}</span>
+                      <span class="font-semibold">{{ shift()!.closingBalance | xaf }}</span>
                     </div>
                     
                     <p-divider />
@@ -164,7 +166,7 @@ import { ShiftReportsService } from "../../../core/services/shift-reports.servic
                       <span class="text-2xl font-bold" 
                             [class.text-green-600]="shift()!.discrepancy >= 0"
                             [class.text-red-600]="shift()!.discrepancy < 0">
-                        {{ shift()!.discrepancy | currency:'EUR':'symbol':'1.2-2' }}
+                        {{ shift()!.discrepancy | xaf }}
                       </span>
                     </div>
                   </div>
@@ -182,12 +184,12 @@ import { ShiftReportsService } from "../../../core/services/shift-reports.servic
                 
                 <div class="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
                   <div class="text-500 font-medium">Ventes</div>
-                  <div class="text-900 text-3xl font-bold text-green-600">{{ shift()!.totalSales | currency:'EUR':'symbol':'1.2-2' }}</div>
+                  <div class="text-900 text-3xl font-bold text-green-600">{{ shift()!.totalSales | xaf }}</div>
                 </div>
                 
                 <div class="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
                   <div class="text-500 font-medium">Remboursements</div>
-                  <div class="text-900 text-3xl font-bold text-red-600">{{ shift()!.totalRefunds | currency:'EUR':'symbol':'1.2-2' }}</div>
+                  <div class="text-900 text-3xl font-bold text-red-600">{{ shift()!.totalRefunds | xaf }}</div>
                 </div>
               </div>
             </p-card>
@@ -212,7 +214,7 @@ import { ShiftReportsService } from "../../../core/services/shift-reports.servic
                         <p-tag value="Vente" severity="success" />
                       </td>
                       <td class="py-3">Commande #ORD-1234</td>
-                      <td class="py-3 font-semibold text-green-600">+125.50€</td>
+                      <td class="py-3 font-semibold text-green-600">+125.50 xaf</td>
                     </tr>
                     <tr class="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
                       <td class="py-3">15:45</td>
@@ -332,7 +334,7 @@ import { ShiftReportsService } from "../../../core/services/shift-reports.servic
                   <div>
                     <div class="font-medium">Caisse ouverte</div>
                     <div class="text-sm text-gray-500">{{ shift()!.startTime | date:'dd/MM/yyyy HH:mm' }}</div>
-                    <div class="text-sm text-gray-500">Solde d'ouverture: {{ shift()!.openingBalance | currency:'EUR':'symbol':'1.2-2' }}</div>
+                    <div class="text-sm text-gray-500">Solde d'ouverture: {{ shift()!.openingBalance | xaf }}</div>
                   </div>
                 </div>
                 
@@ -453,6 +455,7 @@ export class ShiftReportDetailComponent implements OnInit {
     if (this.shiftId()) {
       this.shiftReportsService.getShiftReportById(this.shiftId()).subscribe(shift => {
         this.notes = shift?.notes || '';
+        console.log(this.shift());
       });
     }
   }

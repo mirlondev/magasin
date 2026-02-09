@@ -27,6 +27,8 @@ export class OrdersService {
   // State signals
   orders = signal<Order[]>([]);
   selectedOrder = signal<Order | null>(null);
+  ordersByCashierId = signal<Order | null>(null);
+
   loading = signal<boolean>(false);
   error = signal<string | null>(null);
   total = signal<number>(0);
@@ -95,6 +97,26 @@ export class OrdersService {
       })
     );
   }
+
+    // Get order by cashier ID
+  getOrdersByCashierId(orderId: string, cashierId: string): Observable<Order> {
+    this.loading.set(true);
+    return this.http.get<ApiResponse<Order>>(
+      this.apiConfig.getEndpoint(`/orders/cashier/${cashierId}/shift/${orderId}`)
+    ).pipe(
+      map(response => response.data),
+      tap(order => {
+        this.ordersByCashierId.set(order);
+        this.loading.set(false);
+      }),
+      catchError(error => {
+        this.loading.set(false);
+        this.errorHandler.handleError(error, 'Chargement des commandes');
+        throw error;
+      })
+    );
+  }
+
 
   // Create new order
   createOrder(orderData: OrderRequest): Observable<Order> {

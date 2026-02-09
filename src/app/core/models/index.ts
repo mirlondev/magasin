@@ -47,6 +47,7 @@ export enum PaymentMethod {
   BANK_TRANSFER = 'BANK_TRANSFER',
   CHECK = 'CHECK',
   LOYALTY_POINTS = 'LOYALTY_POINTS',
+  CREDIT = 'CREDIT',
   MIXED = 'MIXED'
 }
 

@@ -12,6 +12,7 @@ import { ToastModule } from "primeng/toast";
 import { AuthService } from "../../../core/services/auth.service";
 import { ShiftReportsService } from "../../../core/services/shift-reports.service";
 import { StoresService } from "../../../core/services/stores.service";
+import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
 
 @Component({
   selector: 'app-shift-report-open',
@@ -24,8 +25,9 @@ import { StoresService } from "../../../core/services/stores.service";
     InputNumberModule,
     TextareaModule,
     SelectModule,
-    ToastModule
-  ],
+    ToastModule,
+    XafPipe
+],
   template: `
     <div class="p-4">
       <p-toast />
@@ -110,7 +112,7 @@ import { StoresService } from "../../../core/services/stores.service";
                   @for (amount of quickAmounts; track amount) {
                     <button type="button"
                             pButton
-                            [label]="amount + '€'"
+                            [label]="amount | xaf"
                             class="p-button-outlined"
                             (click)="shiftData()!.openingBalance = amount">
                     </button>

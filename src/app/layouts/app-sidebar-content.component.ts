@@ -259,7 +259,7 @@ export class SidebarContentComponent {
     }
   });
 
-  // Menu items avec contrôle d'accès par rôle
+
   menuItems: MenuItem[] = [
     {
       label: 'Dashboard',
@@ -272,24 +272,32 @@ export class SidebarContentComponent {
       icon: 'pi-shopping-cart',
       routerLink: '/orders',
       roles: [EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER],
+
       items: [
         {
-          label: 'Commandes',
+          label: 'Listes',
           icon: 'pi-list',
           routerLink: '/orders',
-          roles: [EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER]
+          roles: [EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN]
         },
         {
-          label: 'Remboursements',
+          label: 'pos-sale',
+          icon: 'pi-list',
+          routerLink: '/orders/pos-sale',
+          roles: [EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER]
+        },
+
+        {
+          label: 'credit-sale',
           icon: 'pi-undo',
-          routerLink: '/refunds',
-          roles: [EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER]
+          routerLink: '/orders/credit-sale',
+          roles: [EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN]
         },
         {
-          label: 'Rapports de caisse',
+          label: 'proforma',
           icon: 'pi-file',
-          routerLink: '/shift-reports',
-          roles: [EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER]
+          routerLink: '/orders/proforma',
+          roles: [EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN]
         }
       ]
     },
@@ -335,6 +343,12 @@ export class SidebarContentComponent {
       label: 'Employés',
       icon: 'pi-id-card',
       routerLink: '/employees',
+      roles: [EmployeeRole.ADMIN]
+    },
+        {
+      label: 'Gestion de sessions',
+      icon: 'pi-users',
+      routerLink: '/shift-reports',
       roles: [EmployeeRole.ADMIN]
     },
     {

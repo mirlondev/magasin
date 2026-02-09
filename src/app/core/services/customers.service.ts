@@ -34,41 +34,43 @@ export class CustomersService {
   topCustomers = signal<Customer[]>([]);
 
   // Load customers with pagination and filters
-  loadCustomers(page: number = 1, pageSize: number = 10, filters?: CustomerFilters) {
+  loadCustomers(page: number = 1, pageSize: number = 10, filters?: CustomerFilters): Observable<PaginatedResponse<Customer>> {
     this.loading.set(true);
     this.error.set(null);
 
     const params: any = { page: page - 1, size: pageSize, ...filters };
 
-    this.http.get<ApiResponse<PaginatedResponse<Customer>>>(
+    return this.http.get<ApiResponse<PaginatedResponse<Customer>>>(
       this.apiConfig.getEndpoint('/customers'),
       { params }
     ).pipe(
       map(response => response.data),
+      tap(data => {
+        const items = Array.isArray(data) ? data : (data?.items || []);
+        const total = Array.isArray(data) ? data.length : (data?.total || 0);
+        const pageNum = Array.isArray(data) ? 1 : (data?.page || 0) + 1;
+        const size = Array.isArray(data) ? items.length : (data?.size || 10);
+
+        this.customers.set(items);
+        this.total.set(total);
+        this.page.set(pageNum);
+        this.pageSize.set(size);
+        
+        // Update computed signals
+        this.activeCustomers.set(items.filter(c => c.isActive));
+        this.topCustomers.set([...items]
+          .sort((a, b) => b.totalPurchases - a.totalPurchases)
+          .slice(0, 10));
+        
+        this.loading.set(false);
+      }),
       catchError(error => {
         const errorMsg = this.errorHandler.handleError(error, 'Chargement des clients');
         this.error.set(errorMsg);
+        this.loading.set(false);
         return of({ items: [], total: 0, page: 0, size: 0, totalPages: 0 });
       })
-    ).subscribe(data => {
-      const items = Array.isArray(data) ? data : (data?.items || []);
-      const total = Array.isArray(data) ? data.length : (data?.total || 0);
-      const page = Array.isArray(data) ? 1 : (data?.page || 0) + 1;
-      const size = Array.isArray(data) ? items.length : (data?.size || 10);
-
-      this.customers.set(items);
-      this.total.set(total);
-      this.page.set(page);
-      this.pageSize.set(size);
-      
-      // Update computed signals
-      this.activeCustomers.set(items.filter(c => c.isActive));
-      this.topCustomers.set([...items]
-        .sort((a, b) => b.totalPurchases - a.totalPurchases)
-        .slice(0, 10));
-      
-      this.loading.set(false);
-    });
+    );
   }
 
   // Get customer by ID
