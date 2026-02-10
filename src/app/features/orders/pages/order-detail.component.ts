@@ -13,7 +13,9 @@ import { TagModule } from "primeng/tag";
 import { ToastModule } from "primeng/toast";
 import { EmployeeRole, OrderStatus, PaymentStatus } from "../../../core/models";
 import { AuthService } from "../../../core/services/auth.service";
-import { OrdersService } from "../../../core/services/orders.service";
+import { OrderService } from "../../../core/services/orders.service";
+import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
+import { OrderHelper } from "../../../core/utils/helpers";
 
 @Component({
   selector: 'app-order-detail',
@@ -28,7 +30,8 @@ import { OrdersService } from "../../../core/services/orders.service";
     TableModule,
     DialogModule,
     ToastModule,
-    ConfirmDialogModule
+    ConfirmDialogModule,
+    XafPipe
   ],
   template: `
     <div class="p-4 m-4">
@@ -90,26 +93,26 @@ import { OrdersService } from "../../../core/services/orders.service";
                     <div class="flex justify-between">
                       <span class="text-gray-600">Statut:</span>
                       @if (order()?.status) {
-                        <p-tag [value]="getStatusLabel(order()!.status!)" 
-                               [severity]="getStatusSeverity(order()!.status!)" />
+                        <p-tag [value]="OrderHelper.getOrderStatusLabel(order()!.status!)" 
+                               [severity]="OrderHelper.getOrderStatusSeverity(order()!.status!)" />
                       }
                     </div>
                     <div class="flex justify-between">
                       <span class="text-gray-600">Paiement:</span>
-                      <p-tag [value]="getPaymentStatusLabel(order()!.paymentStatus)" 
-                             [severity]="getPaymentStatusSeverity(order()!.paymentStatus)" />
+                      <p-tag [value]="OrderHelper.getPaymentStatusLabel(order()!.paymentStatus)" 
+                             [severity]="OrderHelper.getPaymentStatusSeverity(order()!.paymentStatus)" />
                     </div>
                     <div class="flex justify-between">
                       <span class="text-gray-600">Méthode de paiement:</span>
-                      <span class="font-medium">{{ getPaymentMethodLabel(order()!.paymentMethod) }}</span>
+                      <span class="font-medium">{{ OrderHelper.getPaymentMethodLabel(order()!.paymentMethod) }}</span>
                     </div>
                     <div class="flex justify-between">
-                      <span class="text-gray-600">Caissier:</span>
-                      <span class="font-medium">{{ order()!.cashier.username || 'N/A' }}</span>
+                      <span class="text-gray-600">Caissier ID:</span>
+                      <span class="font-medium">{{ order()!.cashierId || 'N/A' }}</span>
                     </div>
                     <div class="flex justify-between">
-                      <span class="text-gray-600">Magasin:</span>
-                      <span class="font-medium">{{ order()!.store.name || 'N/A' }}</span>
+                      <span class="text-gray-600">Magasin ID:</span>
+                      <span class="font-medium">{{ order()!.storeId || 'N/A' }}</span>
                     </div>
                   </div>
                 </div>
@@ -119,29 +122,29 @@ import { OrdersService } from "../../../core/services/orders.service";
                   <div class="space-y-2">
                     <div class="flex justify-between">
                       <span class="text-gray-600">Sous-total:</span>
-                      <span>{{ order()!.subtotal | currency:'EUR':'symbol':'1.2-2' }}</span>
+                      <span>{{ order()!.subtotal | xaf }}</span>
                     </div>
                     <div class="flex justify-between">
                       <span class="text-gray-600">Remise:</span>
-                      <span class="text-red-500">-{{ order()!.discountAmount | currency:'EUR':'symbol':'1.2-2' }}</span>
+                      <span class="text-red-500">-{{ order()!.discountAmount | xaf }}</span>
                     </div>
                     <div class="flex justify-between">
                       <span class="text-gray-600">Taxe ({{ order()!.taxRate }}%):</span>
-                      <span>{{ order()!.taxAmount | currency:'EUR':'symbol':'1.2-2' }}</span>
+                      <span>{{ order()!.taxAmount | xaf }}</span>
                     </div>
                     <p-divider />
                     <div class="flex justify-between text-lg font-bold">
                       <span>Total:</span>
-                      <span>{{ order()!.totalAmount | currency:'EUR':'symbol':'1.2-2' }}</span>
+                      <span>{{ order()!.totalAmount | xaf }}</span>
                     </div>
                     <div class="flex justify-between">
                       <span class="text-gray-600">Payé:</span>
-                      <span class="font-medium">{{ order()!.amountPaid | currency:'EUR':'symbol':'1.2-2' }}</span>
+                      <span class="font-medium">{{ order()!.totalPaid || order()!.amountPaid | xaf }}</span>
                     </div>
                     @if (order()!.changeAmount > 0) {
                       <div class="flex justify-between">
                         <span class="text-gray-600">Monnaie rendue:</span>
-                        <span class="font-medium">{{ order()!.changeAmount | currency:'EUR':'symbol':'1.2-2' }}</span>
+                        <span class="font-medium">{{ order()!.changeAmount | xaf }}</span>
                       </div>
                     }
                   </div>
@@ -172,22 +175,22 @@ import { OrdersService } from "../../../core/services/orders.service";
                 <ng-template pTemplate="body" let-item>
                   <tr>
                     <td class="font-medium">{{ item.product?.name }}</td>
-                    <td>{{ item.unitPrice | currency:'EUR':'symbol':'1.2-2' }}</td>
+                    <td>{{ item.unitPrice | xaf }}</td>
                     <td>{{ item.quantity }}</td>
                     <td>
                       @if (item.discountPercentage > 0) {
-                        <span class="text-red-500">{{ item.discountPercentage }}% (-{{ item.discountAmount | currency:'EUR':'symbol':'1.2-2' }})</span>
+                        <span class="text-red-500">{{ item.discountPercentage }}% (-{{ item.discountAmount | xaf }})</span>
                       } @else {
                         <span>-</span>
                       }
                     </td>
-                    <td class="font-semibold">{{ item.totalPrice | currency:'EUR':'symbol':'1.2-2' }}</td>
+                    <td class="font-semibold">{{ item.totalPrice | xaf }}</td>
                   </tr>
                 </ng-template>
                 <ng-template pTemplate="footer">
                   <tr>
                     <td colspan="4" class="text-right font-bold">Total articles:</td>
-                    <td class="font-bold">{{ order()!.subtotal | currency:'EUR':'symbol':'1.2-2' }}</td>
+                    <td class="font-bold">{{ order()!.subtotal | xaf }}</td>
                   </tr>
                 </ng-template>
               </p-table>
@@ -198,30 +201,30 @@ import { OrdersService } from "../../../core/services/orders.service";
           <div class="space-y-6">
             <!-- Customer Information -->
             <p-card header="Client">
-              @if (order()?.customer) {
+              @if (order()?.customerName || order()?.customerId) {
                 <div class="space-y-3">
                   <div>
                     <div class="text-sm text-gray-500">Nom complet</div>
-                    <div class="font-medium">{{ order()?.customer?.fullName }}</div>
+                    <div class="font-medium">{{ order()?.customerName }}</div>
                   </div>
                   <div>
                     <div class="text-sm text-gray-500">Email</div>
-                    <div class="font-medium">{{ order()?.customer?.email || 'Non renseigné' }}</div>
+                    <div class="font-medium">{{ order()?.customerEmail || 'Non renseigné' }}</div>
                   </div>
                   <div>
                     <div class="text-sm text-gray-500">Téléphone</div>
-                    <div class="font-medium">{{ order()?.customer?.phone || 'Non renseigné' }}</div>
+                    <div class="font-medium">{{ order()?.customerPhone || 'Non renseigné' }}</div>
                   </div>
                   <div>
                     <div class="text-sm text-gray-500">Points de fidélité</div>
-                    <div class="font-medium">{{ order()?.customer?.loyaltyPoints || 0 }} points</div>
+                    <div class="font-medium">{{ order()?.customerLoyaltyPoints || 0 }} points</div>
                   </div>
                   <div class="pt-4">
                     <button pButton 
                             label="Voir le profil" 
                             icon="pi pi-user" 
                             class="p-button-outlined w-full"
-                            [routerLink]="['/customers', order()?.customer?.customerId]">
+                            [routerLink]="['/customers', order()?.customerId]">
                     </button>
                   </div>
                 </div>
@@ -272,7 +275,7 @@ import { OrdersService } from "../../../core/services/orders.service";
                   </button>
                 }
                 
-                @if (canRefundOrder() && order()!.paymentStatus === 'PAID' && !order()!.fullyRefunded) {
+                @if (canRefundOrder() && order()!.paymentStatus === 'PAID') {
                   <button pButton 
                           icon="pi pi-undo" 
                           label="Demander un remboursement" 
@@ -351,7 +354,7 @@ export class OrderDetailComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private location = inject(Location);
-  private ordersService = inject(OrdersService);
+  private ordersService = inject(OrderService);
   private confirmationService = inject(ConfirmationService);
   private messageService = inject(MessageService);
   private authService = inject(AuthService);
@@ -359,6 +362,7 @@ export class OrderDetailComponent implements OnInit {
   orderId = signal<string>('');
   order = this.ordersService.selectedOrder || undefined;
   loading = this.ordersService.loading;
+  protected readonly OrderHelper = OrderHelper;
 
   ngOnInit() {
     this.route.params.subscribe(params => {
@@ -391,7 +395,7 @@ export class OrderDetailComponent implements OnInit {
       return false;
     }
     const status = this.order()?.paymentStatus;
-    return status === 'PENDING' || status === 'PARTIALLY_PAID';
+    return status === 'UNPAID' || status === 'PARTIALLY_PAID';
   }
 
   canUpdateOrderStatus(): boolean {
@@ -404,65 +408,23 @@ export class OrderDetailComponent implements OnInit {
 
   // UI Helpers
   getStatusLabel(status: OrderStatus): string {
-    switch (status) {
-      case OrderStatus.PENDING: return 'En attente';
-      case OrderStatus.PROCESSING: return 'En traitement';
-      case OrderStatus.READY: return 'Prête';
-      case OrderStatus.COMPLETED: return 'Terminée';
-      case OrderStatus.CANCELLED: return 'Annulée';
-      case OrderStatus.REFUNDED: return 'Remboursée';
-      default: return status;
-    }
+    return OrderHelper.getOrderStatusLabel(status);
   }
 
-  getStatusSeverity(status: OrderStatus): 'success' | 'warn' | 'info' | 'danger' | 'secondary' | 'contrast' {
-    switch (status) {
-      case OrderStatus.PENDING: return 'warn';
-      case OrderStatus.PROCESSING: return 'info';
-      case OrderStatus.READY: return 'info';
-      case OrderStatus.COMPLETED: return 'success';
-      case OrderStatus.CANCELLED: return 'danger';
-      case OrderStatus.REFUNDED: return 'secondary';
-      default: return 'info';
-    }
+  getStatusSeverity(status: OrderStatus): any {
+    return OrderHelper.getOrderStatusSeverity(status);
   }
 
   getPaymentStatusLabel(status: PaymentStatus): string {
-    switch (status) {
-      case PaymentStatus.PENDING: return 'En attente';
-      case PaymentStatus.PAID: return 'Payée';
-      case PaymentStatus.PARTIALLY_PAID: return 'Partiellement payée';
-      case PaymentStatus.FAILED: return 'Échouée';
-      case PaymentStatus.REFUNDED: return 'Remboursée';
-      case PaymentStatus.CANCELLED: return 'Annulée';
-      default: return status;
-    }
+    return OrderHelper.getPaymentStatusLabel(status);
   }
 
-  getPaymentStatusSeverity(status: PaymentStatus): 'success' | 'warn' | 'info' | 'danger' | 'secondary' | 'contrast' {
-    switch (status) {
-      case PaymentStatus.PENDING: return 'warn';
-      case PaymentStatus.PAID: return 'success';
-      case PaymentStatus.PARTIALLY_PAID: return 'info';
-      case PaymentStatus.FAILED: return 'danger';
-      case PaymentStatus.REFUNDED: return 'secondary';
-      case PaymentStatus.CANCELLED: return 'danger';
-      default: return 'info';
-    }
+  getPaymentStatusSeverity(status: PaymentStatus): any {
+    return OrderHelper.getPaymentStatusSeverity(status);
   }
 
-  getPaymentMethodLabel(method: string): string {
-    switch (method) {
-      case 'CASH': return 'Espèces';
-      case 'CREDIT_CARD': return 'Carte de crédit';
-      case 'DEBIT_CARD': return 'Carte de débit';
-      case 'MOBILE_MONEY': return 'Mobile Money';
-      case 'BANK_TRANSFER': return 'Virement bancaire';
-      case 'CHECK': return 'Chèque';
-      case 'LOYALTY_POINTS': return 'Points de fidélité';
-      case 'MIXED': return 'Mixte';
-      default: return method;
-    }
+  getPaymentMethodLabel(method: any): string {
+    return OrderHelper.getPaymentMethodLabel(method as any);
   }
 
   // Operations

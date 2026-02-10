@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { Component, OnInit, inject, signal } from "@angular/core";
+import { Component, OnInit, computed, inject, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { Router, RouterLink } from "@angular/router";
 import { ConfirmationService, MessageService } from "primeng/api";
@@ -18,12 +18,12 @@ import { ShiftReportsService } from "../../../core/services/shift-reports.servic
 
   import { DatePickerModule } from 'primeng/datepicker';
   import { SelectModule } from 'primeng/select';
+import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
 @Component({
   selector: 'app-shift-report-list',
   standalone: true,
   imports: [
-
-CommonModule,
+    CommonModule,
     FormsModule,
     RouterLink,
     ButtonModule,
@@ -36,8 +36,9 @@ CommonModule,
     ToolbarModule,
     ConfirmDialogModule,
     ToastModule,
-    CardModule
-  ],
+    CardModule,
+    XafPipe
+],
   template: `
     <div class="p-4">
       <p-toast />
@@ -54,7 +55,7 @@ CommonModule,
                 <p class="text-gray-600 dark:text-gray-400">
                   Session #{{ currentShift()?.shiftNumber }} • 
                   Ouverte à {{ currentShift()?.startTime | date:'HH:mm' }} • 
-                  Solde: {{ currentShift()?.actualBalance | currency:'EUR':'symbol':'1.2-2' }}
+                  Solde: {{ currentShift()?.actualBalance | xaf }}
                 </p>
               </div>
             </div>
@@ -176,7 +177,7 @@ CommonModule,
         <div class="surface-card p-4 shadow-2 rounded">
           <div class="text-500 font-medium">Total ventes</div>
           <div class="text-900 text-3xl font-bold">
-            {{ totalSales() | currency:'EUR':'symbol':'1.2-2' }}
+            {{ totalSales() | xaf }}
           </div>
         </div>
       </div>
@@ -219,7 +220,7 @@ CommonModule,
               <p-tag [value]="getStatusLabel(shift.status)" 
                      [severity]="getStatusSeverity(shift.status)" />
             </td>
-            <td class="font-semibold">{{ shift.totalSales | currency:'EUR':'symbol':'1.2-2' }}</td>
+            <td class="font-semibold">{{ shift.totalSales | xaf }}</td>
             <td>{{ shift.startTime | date:'dd/MM/yyyy HH:mm' }}</td>
             <td>
               @if (shift.endTime) {
@@ -333,9 +334,9 @@ export class ShiftReportListComponent implements OnInit {
   }
 
   // Computed
-  totalSales = () => {
+  totalSales = computed(() => {
     return this.shiftReports().reduce((sum, shift) => sum + shift.totalSales, 0);
-  };
+  });
 
   // Permission checks
   canOpenShift(): boolean {

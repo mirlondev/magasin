@@ -1,22 +1,25 @@
-import { Component, inject, input, output, signal, OnInit, model } from '@angular/core';
-import { toObservable } from '@angular/core/rxjs-interop';
+import { Component, inject, input, output, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { DialogModule } from 'primeng/dialog';
 import { InputNumberModule } from 'primeng/inputnumber';
-import { TableModule } from 'primeng/table';
-import { TagModule } from 'primeng/tag';
-import { ToastModule } from 'primeng/toast';
-import { CustomersService } from '../../../../core/services/customers.service';
-import { OrdersService } from '../../../../core/services/orders.service';
-import { Customer, Order, PaymentMethod, PaymentStatus } from '../../../../core/models';
+import { RadioButtonModule } from 'primeng/radiobutton';
+import { SelectModule } from 'primeng/select';
+import { TextareaModule } from 'primeng/textarea';
+import { DividerModule } from 'primeng/divider';
+import { PaymentMethod } from '../../../../core/models';
 import { XafPipe } from '../../../../core/pipes/xaf-currency-pipe';
 
+interface PaymentEntry {
+  method: PaymentMethod;
+  amount: number;
+  notes?: string;
+}
+
 @Component({
-  selector: 'app-payment-credit',
+  selector: 'app-payment-cash',
   standalone: true,
   imports: [
     CommonModule,
@@ -25,147 +28,173 @@ import { XafPipe } from '../../../../core/pipes/xaf-currency-pipe';
     CardModule,
     DialogModule,
     InputNumberModule,
-    TableModule,
-    TagModule,
-    ToastModule,
+    RadioButtonModule,
+    SelectModule,
+    TextareaModule,
+    DividerModule,
     XafPipe
   ],
   template: `
-    <p-dialog header="Paiement à Crédit" 
+    <p-dialog header="Paiement" 
               [(visible)]="visible"
               [modal]="true"
-              [style]="{ width: '800px' }"
+              [style]="{ width: '700px' }"
               (onHide)="onCancel()">
       <div class="space-y-6">
-        <!-- Customer Credit Summary -->
-        @if (customer()) {
-          <div class="bg-blue-50 p-4 rounded-lg">
-            <div class="grid grid-cols-3 gap-4">
-              <div>
-                <div class="text-sm text-gray-500">Client</div>
-                <div class="font-semibold">{{ customer().fullName }}</div>
-              </div>
-              <div>
-                <div class="text-sm text-gray-500">Solde crédit total</div>
-                <div class="font-bold text-lg">{{ totalCreditAmount() | xaf }}</div>
-              </div>
-              <div>
-                <div class="text-sm text-gray-500">Commandes impayées</div>
-                <div class="font-bold text-lg">{{ pendingOrders().length }}</div>
-              </div>
+        <!-- Amount Due and Remaining -->
+        <div class="grid grid-cols-2 gap-4">
+          <div class="dark:bg-gray-800 bg-gray-50 p-4 rounded-lg">
+            <div class="text-center">
+              <div class="text-sm text-gray-500">Montant total</div>
+              <div class="text-2xl font-bold text-primary">{{ totalAmount() | xaf }}</div>
             </div>
           </div>
-        }
-
-        <!-- Pending Orders -->
-        <div>
-          <h3 class="font-semibold mb-3">Commandes en attente de paiement</h3>
-          <div class="border rounded-lg overflow-hidden">
-            <p-table [value]="pendingOrders()" [tableStyle]="{'min-width': '50rem'}">
-              <ng-template pTemplate="header">
-                <tr>
-                  <th>Commande</th>
-                  <th>Date</th>
-                  <th>Montant total</th>
-                  <th>Payé</th>
-                  <th>Restant</th>
-                  <th>Action</th>
-                </tr>
-              </ng-template>
-              <ng-template pTemplate="body" let-order>
-                <tr>
-                  <td class="font-semibold">{{ order.orderNumber }}</td>
-                  <td>{{ order.createdAt | date:'dd/MM/yy' }}</td>
-                  <td>{{ order.totalAmount | xaf }}</td>
-                  <td>{{ order.amountPaid | xaf }}</td>
-                  <td>
-                    <span class="font-bold text-red-600">
-                      {{ (order.totalAmount - order.amountPaid) | xaf }}
-                    </span>
-                  </td>
-                  <td>
-                    <button pButton 
-                            icon="pi pi-money-bill" 
-                            label="Payer" 
-                            class="p-button-sm p-button-success"
-                            (click)="selectOrder(order)">
-                    </button>
-                  </td>
-                </tr>
-              </ng-template>
-              <ng-template pTemplate="summary">
-                <tr>
-                  <td colspan="4" class="text-right font-bold">Total restant:</td>
-                  <td class="font-bold text-lg text-red-600">{{ remainingTotal() | xaf }}</td>
-                  <td></td>
-                </tr>
-              </ng-template>
-            </p-table>
+          <div class="dark:bg-gray-800 bg-gray-50 p-4 rounded-lg">
+            <div class="text-center">
+              <div class="text-sm text-gray-500">Reste à payer</div>
+              <div class="text-2xl font-bold" [class.text-green-600]="remainingAmount() === 0" 
+                   [class.text-orange-600]="remainingAmount() > 0">
+                {{ remainingAmount() | xaf }}
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- Payment Form -->
-        @if (selectedOrder()) {
-          <div class="border-t pt-4">
-            <h3 class="font-semibold mb-3">
-              Paiement pour commande #{{ selectedOrder()?.orderNumber }}
-            </h3>
-            
-            <div class="grid grid-cols-2 gap-4">
-              <div class="bg-gray-50 p-4 rounded-lg">
-                <div class="space-y-2">
-                  <div class="flex justify-between">
-                    <span class="text-gray-600">Montant total:</span>
-                    <span class="font-semibold">{{ selectedOrder()?.totalAmount | xaf }}</span>
-                  </div>
-                  <div class="flex justify-between">
-                    <span class="text-gray-600">Déjà payé:</span>
-                    <span class="text-green-600">{{ selectedOrder()?.amountPaid | xaf }}</span>
-                  </div>
-                  <div class="flex justify-between border-t pt-2">
-                    <span class="font-bold">Restant à payer:</span>
-                    <span class="font-bold text-lg text-red-600">
-                      {{ (selectedOrder()!.totalAmount - selectedOrder()!.amountPaid) | xaf }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="space-y-4">
-                <div>
-                  <label class="block font-medium mb-2">Montant à payer</label>
-                  <p-inputNumber [(ngModel)]="paymentAmount"
-                                 mode="decimal"
-                                 [minFractionDigits]="0"
-                                 [maxFractionDigits]="0"
-                                 [min]="0"
-                                 [max]="selectedOrder()!.totalAmount - selectedOrder()!.amountPaid"
-                                 class="w-full">
-                  </p-inputNumber>
-                </div>
-
-                <div>
-                  <label class="block font-medium mb-2">Mode de paiement</label>
-                  <select [(ngModel)]="paymentMethod" class="w-full p-2 border rounded">
-                    <option value="CASH">Espèces</option>
-                    <option value="CREDIT_CARD">Carte bancaire</option>
-                    <option value="MOBILE_MONEY">Mobile Money</option>
-                    <option value="BANK_TRANSFER">Virement</option>
-                  </select>
-                </div>
-              </div>
+        <!-- Existing Payments (if any) -->
+        @if (payments().length > 0) {
+          <div class="border rounded-lg p-3">
+            <div class="flex justify-between items-center mb-2">
+              <div class="text-sm font-medium">Paiements enregistrés:</div>
+              <div class="text-xs text-gray-500">Total: {{ totalPaid() | xaf }}</div>
             </div>
+            @for (payment of payments(); track $index) {
+              <div class="flex justify-between items-center py-2 border-b last:border-0">
+                <div class="flex items-center gap-2">
+                  <i class="pi {{ getPaymentIcon(payment.method) }}"></i>
+                  <span class="text-sm">{{ getPaymentLabel(payment.method) }}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="font-semibold">{{ payment.amount | xaf }}</span>
+                  <button pButton 
+                          icon="pi pi-times" 
+                          class="p-button-text p-button-sm p-button-danger"
+                          (click)="removePayment($index)"
+                          pTooltip="Supprimer">
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        }
 
-            <!-- Notes -->
-            <div class="mt-4">
-              <label class="block font-medium mb-2">Notes (optionnel)</label>
-              <textarea [(ngModel)]="notes"
-                        class="w-full p-2 border rounded"
-                        rows="2"
-                        placeholder="Référence paiement..."></textarea>
+        <!-- Payment Method Selection -->
+        <div>
+          <label class="block font-medium mb-3">Mode de paiement</label>
+          <div class="grid grid-cols-2 gap-3">
+            @for (method of paymentMethods; track method.value) {
+              <div class="field-radiobutton">
+                <p-radioButton [inputId]="method.value"
+                               [value]="method.value"
+                               [(ngModel)]="selectedMethod"
+                               name="paymentMethod">
+                </p-radioButton>
+                <label [for]="method.value" class="ml-2 cursor-pointer">
+                  <i class="pi {{ method.icon }} mr-2"></i>
+                  {{ method.label }}
+                </label>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Cash Details -->
+        @if (selectedMethod === PaymentMethod.CASH) {
+          <div class="border-t pt-4">
+            <label class="block font-medium mb-2">Montant reçu</label>
+            <div class="flex gap-2 mb-4">
+              <p-inputNumber [(ngModel)]="amountReceived"
+                             mode="decimal"
+                             [minFractionDigits]="0"
+                             [maxFractionDigits]="0"
+                             [min]="0"
+                             (onInput)="calculateChange()"
+                             class="flex-1">
+              </p-inputNumber>
+              
+              <button pButton 
+                      label="Exact"
+                      class="p-button-outlined"
+                      (click)="setExactAmount()">
+              </button>
+            </div>
+            
+            <!-- Change or Insufficient Display -->
+            @if (amountReceived >= remainingAmount() && amountReceived > 0) {
+              <div class="p-3 bg-green-50 border border-green-200 rounded-lg">
+                <div class="flex justify-between items-center">
+                  <span class="font-semibold">Monnaie à rendre:</span>
+                  <span class="text-lg font-bold text-green-600">{{ changeAmount() | xaf }}</span>
+                </div>
+              </div>
+            } @else if (amountReceived > 0 && amountReceived < remainingAmount()) {
+              <div class="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                <div class="flex justify-between items-center">
+                  <span class="font-semibold">Paiement partiel:</span>
+                  <span class="text-lg font-bold text-orange-600">
+                    {{ amountReceived | xaf }}
+                  </span>
+                </div>
+                <div class="text-sm text-gray-600 mt-1">
+                  Restera {{ (remainingAmount() - amountReceived) | xaf }} à payer
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- Quick Amounts -->
+          <div>
+            <label class="block font-medium mb-2">Montants rapides</label>
+            <div class="grid grid-cols-4 gap-2">
+              @for (amount of quickAmounts; track amount) {
+                <button pButton 
+                        [label]="amount + ' XAF'"
+                        class="p-button-outlined p-button-sm"
+                        (click)="setAmount(amount)">
+                </button>
+              }
             </div>
           </div>
         }
+
+        <!-- Non-Cash Payment Amount -->
+        @if (selectedMethod !== PaymentMethod.CASH) {
+          <div>
+            <label class="block font-medium mb-2">Montant</label>
+            <p-inputNumber [(ngModel)]="amountReceived"
+                           mode="decimal"
+                           [minFractionDigits]="0"
+                           [maxFractionDigits]="0"
+                           [min]="0"
+                           [max]="remainingAmount()"
+                           placeholder="Montant payé"
+                           class="w-full">
+            </p-inputNumber>
+            <div class="text-sm text-gray-500 mt-1">
+              Maximum: {{ remainingAmount() | xaf }}
+            </div>
+          </div>
+        }
+
+        <!-- Notes -->
+        <div>
+          <label class="block font-medium mb-2">Notes de paiement</label>
+          <textarea pInputTextarea 
+                    [(ngModel)]="notes"
+                    rows="2"
+                    class="w-full"
+                    placeholder="Informations complémentaires...">
+          </textarea>
+        </div>
       </div>
       
       <ng-template pTemplate="footer">
@@ -175,13 +204,26 @@ import { XafPipe } from '../../../../core/pipes/xaf-currency-pipe';
                 (click)="onCancel()">
         </button>
         
+        @if (remainingAmount() > 0) {
+          <button pButton 
+                  label="AJOUTER PAIEMENT" 
+                  icon="pi pi-plus" 
+                  class="p-button-primary"
+                  (click)="onAddPayment()"
+                  [disabled]="!canAddPayment()">
+            @if (loading()) {
+              <i class="pi pi-spin pi-spinner ml-2"></i>
+            }
+          </button>
+        }
+        
         <button pButton 
-                label="ENREGISTRER LE PAIEMENT" 
+                label="FINALISER LA VENTE" 
                 icon="pi pi-check" 
                 class="p-button-success"
-                (click)="processPayment()"
-                [disabled]="!canProcessPayment()">
-          @if (processing()) {
+                (click)="onSubmit()"
+                [disabled]="!canFinalize()">
+          @if (loading()) {
             <i class="pi pi-spin pi-spinner ml-2"></i>
           }
         </button>
@@ -189,131 +231,140 @@ import { XafPipe } from '../../../../core/pipes/xaf-currency-pipe';
     </p-dialog>
   `
 })
-export class PaymentCreditComponent implements OnInit {
-  private ordersService = inject(OrdersService);
-  private customersService = inject(CustomersService);
-  private messageService = inject(MessageService);
-
+export class PaymentCashComponent {
   // Inputs/Outputs
-  customer = input.required<Customer>();
-  visible = model(true);
-  paymentComplete = output<{
-    orderId: string;
-    amount: number;
-    paymentMethod: PaymentMethod;
-    notes?: string;
-  }>();
+  totalAmount = input(0);
+  orderNotes = input('');
+  paymentComplete = output<PaymentEntry[]>();
   cancel = output<void>();
 
   // State
-  processing = signal(false);
-  pendingOrders = signal<Order[]>([]);
-  selectedOrder = signal<Order | null>(null);
-  paymentAmount = 0;
-  paymentMethod: PaymentMethod = PaymentMethod.CASH;
+  visible = signal(true);
+  loading = signal(false);
+  selectedMethod: PaymentMethod = PaymentMethod.CASH;
+  amountReceived = 0;
+  changeAmount = signal(0);
   notes = '';
-
+  
+  // Payment tracking
+  payments = signal<PaymentEntry[]>([]);
+  
   // Computed
-  totalCreditAmount = signal(0);
-  remainingTotal = signal(0);
+  totalPaid = computed(() => 
+    this.payments().reduce((sum, p) => sum + p.amount, 0)
+  );
+  
+  remainingAmount = computed(() => 
+    Math.max(0, this.totalAmount() - this.totalPaid())
+  );
 
-  ngOnInit() {
-    this.loadCustomerOrders();
-  }
+  // Constants
+  PaymentMethod = PaymentMethod;
+  paymentMethods = [
+    { label: 'Espèces', value: PaymentMethod.CASH, icon: 'pi-money-bill' },
+    { label: 'Carte Bancaire', value: PaymentMethod.CREDIT_CARD, icon: 'pi-credit-card' },
+    { label: 'Mobile Money', value: PaymentMethod.MOBILE_MONEY, icon: 'pi-mobile' }
+  ];
 
-  loadCustomerOrders() {
-    if (this.customer()) {
-      this.ordersService.loadOrders(1, 50, {
-        customerId: this.customer()!.customerId,
-        paymentStatus: PaymentStatus.PARTIALLY_PAID
-      });
-      
-      // Subscribe to orders changes
-      toObservable(this.ordersService.orders).subscribe(orders => {
-        const pending = orders.filter(order => 
-          order.paymentStatus === PaymentStatus.PARTIALLY_PAID ||
-          order.paymentStatus === PaymentStatus.PENDING
-        );
-        this.pendingOrders.set(pending);
-        
-        this.calculateTotals(pending);
-      });
+  quickAmounts = [5000, 10000, 20000, 50000];
+
+  // Methods
+  calculateChange() {
+    if (this.selectedMethod === PaymentMethod.CASH) {
+      const change = this.amountReceived - this.remainingAmount();
+      this.changeAmount.set(change > 0 ? change : 0);
     }
   }
 
-  calculateTotals(orders: Order[]) {
-    const totalCredit = orders.reduce((sum, order) => sum + order.totalAmount, 0);
-    const remaining = orders.reduce((sum, order) => 
-      sum + (order.totalAmount - order.amountPaid), 0
-    );
-    
-    this.totalCreditAmount.set(totalCredit);
-    this.remainingTotal.set(remaining);
+  setExactAmount() {
+    this.amountReceived = this.remainingAmount();
+    this.calculateChange();
   }
 
-  selectOrder(order: Order) {
-    this.selectedOrder.set(order);
-    this.paymentAmount = order.totalAmount - order.amountPaid;
+  setAmount(amount: number) {
+    this.amountReceived = amount;
+    this.calculateChange();
   }
 
-  canProcessPayment(): boolean {
-    if (!this.selectedOrder()) return false;
-    if (this.paymentAmount <= 0) return false;
-    
-    const remaining = this.selectedOrder()!.totalAmount - this.selectedOrder()!.amountPaid;
-    return this.paymentAmount <= remaining;
+  canAddPayment(): boolean {
+    if (this.amountReceived <= 0) return false;
+    if (this.amountReceived > this.remainingAmount()) {
+      // For cash, allow overpayment (will calculate change)
+      if (this.selectedMethod !== PaymentMethod.CASH) return false;
+    }
+    return true;
   }
 
-  processPayment() {
-    if (!this.selectedOrder() || !this.canProcessPayment()) return;
+  canFinalize(): boolean {
+    // Can finalize if total is fully paid or has at least one payment
+    return this.remainingAmount() === 0 || this.payments().length > 0;
+  }
 
-    this.processing.set(true);
+  onAddPayment() {
+    if (!this.canAddPayment()) return;
 
-    const paymentData = {
-      paymentMethod: this.paymentMethod,
-      amountPaid: this.paymentAmount
+    const paymentAmount = this.selectedMethod === PaymentMethod.CASH 
+      ? Math.min(this.amountReceived, this.remainingAmount())
+      : this.amountReceived;
+
+    const payment: PaymentEntry = {
+      method: this.selectedMethod,
+      amount: paymentAmount,
+      notes: this.notes || undefined
     };
 
-    this.ordersService.processPayment(this.selectedOrder()!.orderId, paymentData).subscribe({
-      next: (updatedOrder) => {
-        this.processing.set(false);
-        
-        this.messageService.add({
-          severity: 'success',
-          summary: 'Paiement enregistré',
-          detail: `Paiement de ${this.paymentAmount} enregistré pour la commande #${updatedOrder.orderNumber}`
-        });
+    this.payments.update(payments => [...payments, payment]);
+    
+    // Reset form
+    this.amountReceived = 0;
+    this.notes = '';
+    this.changeAmount.set(0);
+  }
 
-        this.paymentComplete.emit({
-          orderId: this.selectedOrder()!.orderId,
-          amount: this.paymentAmount,
-          paymentMethod: this.paymentMethod,
-          notes: this.notes || undefined
-        });
+  removePayment(index: number) {
+    this.payments.update(payments => payments.filter((_, i) => i !== index));
+  }
 
-        this.resetForm();
-      },
-      error: (error) => {
-        this.processing.set(false);
-        console.error('Error processing credit payment:', error);
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Erreur',
-          detail: 'Erreur lors du traitement du paiement'
-        });
-      }
-    });
+  onSubmit() {
+    if (!this.canFinalize()) return;
+
+    // If there's a pending payment to add, add it first
+    if (this.amountReceived > 0 && this.canAddPayment()) {
+      this.onAddPayment();
+    }
+
+    // Emit all collected payments
+    this.paymentComplete.emit(this.payments());
   }
 
   onCancel() {
-    this.resetForm();
     this.cancel.emit();
   }
 
-  private resetForm() {
-    this.selectedOrder.set(null);
-    this.paymentAmount = 0;
-    this.paymentMethod = PaymentMethod.CASH;
-    this.notes = '';
+  getPaymentIcon(method: PaymentMethod): string {
+    const icons: Record<PaymentMethod, string> = {
+      [PaymentMethod.CASH]: 'pi-money-bill',
+      [PaymentMethod.CREDIT_CARD]: 'pi-credit-card',
+      [PaymentMethod.DEBIT_CARD]: 'pi-credit-card',
+      [PaymentMethod.MOBILE_MONEY]: 'pi-mobile',
+      [PaymentMethod.BANK_TRANSFER]: 'pi-building',
+      [PaymentMethod.CHECK]: 'pi-file',
+      [PaymentMethod.LOYALTY_POINTS]: 'pi-star',
+      [PaymentMethod.CREDIT]: 'pi-clock',
+      [PaymentMethod.MIXED]: 'pi-sliders-h'
+    };
+
+    return icons[method];
+  }
+
+  getPaymentLabel(method: PaymentMethod): string {
+    const labels: Partial<Record<PaymentMethod, string>> = {
+      [PaymentMethod.CASH]: 'Espèces',
+      [PaymentMethod.CREDIT_CARD]: 'Carte Bancaire',
+      [PaymentMethod.MOBILE_MONEY]: 'Mobile Money',
+      [PaymentMethod.CREDIT]: 'Crédit'
+    };
+
+    return labels[method] ?? method;
   }
 }

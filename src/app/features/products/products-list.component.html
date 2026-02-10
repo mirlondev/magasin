@@ -1,3 +1,4 @@
+<!-- products-list.component.html -->
 <div class="p-4">
   <p-toast />
   <p-confirmDialog />
@@ -8,48 +9,318 @@
       <h2 class="text-2xl font-bold">Gestion des Produits</h2>
     </div>
     
-    <div class="p-toolbar-group-end">
+    <div class="p-toolbar-group-end flex items-center gap-2">
+      <!-- Theme toggle -->
+      <button pButton 
+              [icon]="isDarkMode() ? 'pi pi-sun' : 'pi pi-moon'"
+              class="p-button-rounded p-button-text"
+              (click)="showThemeSettings = true"
+              pTooltip="Thème">
+      </button>
+
+      <!-- Bulk actions button -->
+      @if (selectedProducts().length > 0) {
+        <button pButton 
+                icon="pi pi-cog" 
+                [label]="'Actions (' + selectedProducts().length + ')'"
+                class="p-button-warning mr-2"
+                (click)="showBulkOperationsDialog = true">
+        </button>
+      }
+
+      <!-- Filters toggle -->
+      <button pButton 
+              icon="pi pi-filter" 
+              class="p-button-outlined mr-2"
+              (click)="showFiltersSidebar = true">
+      </button>
+      
       @if (canManageProducts()) {
+        <button pButton 
+                icon="pi pi-upload" 
+                label="Importer" 
+                class="p-button-help mr-2"
+                (click)="showImportDialog = true">
+        </button>
+        
         <button pButton 
                 icon="pi pi-plus" 
                 label="Nouveau Produit" 
-                class="p-button-success mr-4"
+                class="p-button-success mr-2"
                 [routerLink]="['/products/new']">
         </button>
       }
       
       <button pButton 
               icon="pi pi-file-export" 
-              label="Exporter CSV" 
-              class="p-button-help mr-2"
+              label="Exporter" 
+              class="p-button-outlined mr-2"
               (click)="generateReport('csv')">
       </button>
       
       <button pButton 
-              icon="pi pi-file-excel" 
-              label="Exporter Excel" 
-              class="p-button-success mr-4"
-              (click)="generateReport('excel')">
-      </button>
-      
-      <button pButton 
               icon="pi pi-refresh" 
-              label="Actualiser" 
-              class="p-button-outlined"
+              class="p-button-rounded p-button-text"
               (click)="refresh()"
-              [disabled]="loading()">
+              [disabled]="loading()"
+              pTooltip="Actualiser">
       </button>
     </div>
   </p-toolbar>
 
-  <!-- Filters -->
-  <div class="p-4 surface-ground rounded mb-4">
-    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+  <!-- Statistics with Skeletons -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    @if (loading()) {
+      @for (i of [1,2,3,4]; track i) {
+        <app-card-skeleton />
+      }
+    } @else {
+      <div class="surface-card p-4 shadow-2 rounded">
+        <div class="text-500 font-medium">Total Produits</div>
+        <div class="text-900 text-3xl font-bold">{{ total() }}</div>
+      </div>
+      
+      <div class="surface-card p-4 shadow-2 rounded">
+        <div class="text-500 font-medium">En Stock</div>
+        <div class="text-900 text-3xl font-bold text-green-500">{{ inStockProducts().length }}</div>
+      </div>
+      
+      <div class="surface-card p-4 shadow-2 rounded">
+        <div class="text-500 font-medium">En Rupture</div>
+        <div class="text-900 text-3xl font-bold text-red-500">{{ outOfStockProducts().length }}</div>
+      </div>
+      
+      <div class="surface-card p-4 shadow-2 rounded">
+        <div class="text-500 font-medium">Valeur Totale</div>
+        <div class="text-900 text-3xl font-bold">
+          {{ totalValue() | xaf }}
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Main Content -->
+  <div class="surface-card p-4 shadow-2 rounded">
+    <!-- Table with Skeleton -->
+    @if (loading()) {
+      <app-table-skeleton 
+        [rows]="pageSize()"
+        [columns]="tableSkeletonColumns">
+      </app-table-skeleton>
+    } @else {
+      <p-table [value]="products()" 
+               [lazy]="true" 
+               [paginator]="true" 
+               [rows]="pageSize()"
+               [totalRecords]="total()"
+               [loading]="loading()"
+               (onLazyLoad)="onLazyLoad($event)"
+               [rowsPerPageOptions]="[10, 25, 50]"
+               [(selection)]="selectedProducts"
+               [tableStyle]="{'min-width': '100rem'}">
+        
+        <ng-template pTemplate="header">
+          <tr>
+            <th style="width: 3rem">
+              <p-tableHeaderCheckbox />
+            </th>
+            <th style="width: 60px">Image</th>
+            <th>Produit</th>
+            <th>Catégorie</th>
+            <th>SKU</th>
+            <th>Code-barres</th>
+            <th>Prix</th>
+            <th>Stock</th>
+            <th>Statut</th>
+            <th>Actions</th>
+          </tr>
+        </ng-template>
+        
+        <ng-template pTemplate="body" let-product>
+          <tr [pSelectableRow]="product">
+            <td>
+              <p-tableCheckbox [value]="product" />
+            </td>
+            <td>
+              @if (product.productImageUrl) {
+                <img [src]="product.productImageUrl" 
+                     [alt]="product.productName"
+                     class="w-12 h-12 rounded-lg object-cover" />
+              } @else {
+                <div class="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                  <i class="pi pi-image text-gray-400"></i>
+                </div>
+              }
+            </td>
+            <td>
+              <div>
+                <div class="font-semibold">{{ product.productName }}</div>
+                <div class="text-sm text-gray-500">{{ product.description?.substring(0, 50) }}...</div>
+              </div>
+            </td>
+            <td>
+              <p-tag [value]="product.categoryName" 
+                     severity="info" />
+            </td>
+            <td>
+              <code class="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">{{ product.sku || 'N/A' }}</code>
+            </td>
+            <td>
+              <code class="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">{{ product.barcode || 'N/A' }}</code>
+            </td>
+            <td>
+              <div class="font-bold text-green-600">{{ product.price | xaf}}</div>
+              @if (product.costPrice) {
+                <div class="text-sm text-gray-500">Coût: {{ product.costPrice | xaf}}</div>
+              }
+            </td>
+            <td>
+              <div class="space-y-1">
+                <div class="font-semibold">{{ product.quantity || 0 }}</div>
+                <div class="flex items-center text-xs text-gray-500">
+                  <span class="mr-2">Min: {{ product.minStock || 0 }}</span>
+                  <span>Max: {{ product.maxStock || 0 }}</span>
+                </div>
+                @if (product.maxStock && product.maxStock > 0) {
+                  <p-progressBar [value]="getStockPercentage(product)" 
+                                 [showValue]="false"
+                                 [class]="getProgressBarClass(product)"
+                                 style="height: 6px">
+                  </p-progressBar>
+                }
+              </div>
+            </td>
+            <td>
+              <div class="flex flex-col gap-1">
+                <p-tag [value]="getStockStatus(product)" 
+                       [severity]="getStockSeverity(product)" />
+                @if (!product.isActive) {
+                  <p-tag value="Inactif" severity="danger" />
+                }
+              </div>
+            </td>
+            <td>
+              <div class="flex gap-1">
+                <button pButton 
+                        icon="pi pi-eye" 
+                        class="p-button-rounded p-button-info p-button-text"
+                        (click)="viewProduct(product)"
+                        pTooltip="Voir détails">
+                </button>
+                
+                @if (canManageProducts()) {
+                  <button pButton 
+                          icon="pi pi-copy" 
+                          class="p-button-rounded p-button-secondary p-button-text"
+                          (click)="cloneProduct(product)"
+                          pTooltip="Cloner">
+                  </button>
+                  
+                  <button pButton 
+                          icon="pi pi-pencil" 
+                          class="p-button-rounded p-button-warning p-button-text"
+                          (click)="editProduct(product)"
+                          pTooltip="Modifier">
+                  </button>
+                  
+                  <button pButton 
+                          icon="pi pi-box" 
+                          class="p-button-rounded p-button-success p-button-text"
+                          (click)="quickRestock(product)"
+                          pTooltip="Réapprovisionner">
+                  </button>
+                  
+                  <button pButton 
+                          [icon]="product.isActive ? 'pi pi-ban' : 'pi pi-check'" 
+                          class="p-button-rounded p-button-help p-button-text"
+                          (click)="toggleProductStatus(product)"
+                          [pTooltip]="product.isActive ? 'Désactiver' : 'Activer'">
+                  </button>
+                  
+                  <button pButton 
+                          icon="pi pi-history" 
+                          class="p-button-rounded p-button-text"
+                          (click)="viewHistory(product)"
+                          pTooltip="Historique">
+                  </button>
+                  
+                  <button pButton 
+                          icon="pi pi-trash" 
+                          class="p-button-rounded p-button-danger p-button-text"
+                          (click)="deleteProduct(product)"
+                          pTooltip="Supprimer">
+                  </button>
+                }
+              </div>
+            </td>
+          </tr>
+        </ng-template>
+        
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="10" class="text-center p-6">
+              <div class="flex flex-col items-center text-gray-500">
+                <i class="pi pi-shopping-bag text-5xl mb-4"></i>
+                <p class="text-lg mb-2">Aucun produit trouvé</p>
+                <p>Essayez de modifier vos filtres ou d'ajouter un nouveau produit</p>
+              </div>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    }
+  </div>
+
+  <!-- Dialogs and Sidebars -->
+
+  <!-- Theme Settings Sidebar -->
+  <p-drawer [(visible)]="showThemeSettings" position="right" styleClass="w-80">
+    <h2 class="text-xl font-bold mb-4">Paramètres d'affichage</h2>
+    
+    <div class="space-y-6">
+      <div>
+        <label class="block text-sm font-medium mb-2">Thème</label>
+        <div class="grid grid-cols-3 gap-2">
+          @for (theme of themeOptions; track theme.value) {
+            <button pButton 
+                    [icon]="theme.icon"
+                    [label]="theme.label"
+                    class="w-full justify-center"
+                    [class.p-button-primary]="currentTheme() === theme.value"
+                    [class.p-button-outlined]="currentTheme() !== theme.value"
+                    (click)="setTheme(theme.value)">
+            </button>
+          }
+        </div>
+      </div>
+      
+      <div>
+        <label class="block text-sm font-medium mb-2">Couleur principale</label>
+        <div class="grid grid-cols-5 gap-2">
+          @for (scheme of colorSchemeOptions; track scheme.value) {
+            <button pButton 
+                    class="w-full p-0 h-8 rounded"
+                    [style.background]="scheme.color"
+                    [class.ring-2]="currentColorScheme() === scheme.value"
+                    [class.ring-primary]="currentColorScheme() === scheme.value"
+                    (click)="setColorScheme(scheme.value)"
+                    pTooltip="{{scheme.label}}">
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  </p-drawer>
+
+  <!-- Filters Sidebar -->
+  <p-drawer [(visible)]="showFiltersSidebar" position="left" styleClass="w-96">
+    <h2 class="text-xl font-bold mb-4">Filtres avancés</h2>
+    
+    <div class="space-y-4">
       <div>
         <label class="block text-sm font-medium mb-2">Recherche</label>
         <input pInputText 
                [(ngModel)]="searchTerm"
-               (ngModelChange)="onFilterChange()"
                placeholder="Nom, SKU, code-barres..." 
                class="w-full" />
       </div>
@@ -57,310 +328,188 @@
       <div>
         <label class="block text-sm font-medium mb-2">Catégorie</label>
         <p-select [options]="categories()" 
-                    [(ngModel)]="selectedCategory"
-                    (onChange)="onFilterChange()"
-                    placeholder="Toutes les catégories"
-                    [showClear]="true"
-                    optionLabel="label"
-                    optionValue="value"
-                    class="w-full">
+                  [(ngModel)]="selectedCategory"
+                  placeholder="Toutes les catégories"
+                  [showClear]="true"
+                  optionLabel="label"
+                  optionValue="value"
+                  class="w-full">
         </p-select>
       </div>
       
       <div>
-        <label class="block text-sm font-medium mb-2">Stock</label>
+        <label class="block text-sm font-medium mb-2">Statut de stock</label>
         <p-select [options]="stockOptions" 
-                    [(ngModel)]="stockFilter"
-                    (onChange)="onFilterChange()"
-                    placeholder="Tous les stocks"
-                    [showClear]="true"
-                    optionLabel="label"
-                    optionValue="value"
-                    class="w-full">
+                  [(ngModel)]="stockFilter"
+                  placeholder="Tous les stocks"
+                  [showClear]="true"
+                  optionLabel="label"
+                  optionValue="value"
+                  class="w-full">
         </p-select>
       </div>
       
-      <div>
-        <label class="block text-sm font-medium mb-2">Prix min</label>
-        <p-inputNumber [(ngModel)]="minPrice"
-                       (onInput)="onFilterChange()"
-                       [min]="0"
-                       [maxFractionDigits]="2"
-                       placeholder="0.00"
-                       class="w-full">
-        </p-inputNumber>
-      </div>
-      
-      <div>
-        <label class="block text-sm font-medium mb-2">Prix max</label>
-        <p-inputNumber [(ngModel)]="maxPrice"
-                       (onInput)="onFilterChange()"
-                       [min]="0"
-                       [maxFractionDigits]="2"
-                       placeholder="0.00"
-                       class="w-full">
-        </p-inputNumber>
-      </div>
-    </div>
-    
-    <div class="flex justify-end mt-4">
-      <button pButton 
-              icon="pi pi-filter-slash" 
-              label="Réinitialiser" 
-              class="p-button-outlined"
-              style="height: 38px"
-              (click)="resetFilters()">
-      </button>
-    </div>
-  </div>
-
-  <!-- Alerts -->
-  @if (outOfStockProducts().length > 0) {
-    <div class="mb-6">
-      <div class="p-4 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center">
-            <i class="pi pi-exclamation-triangle text-red-500 text-xl mr-3"></i>
-            <div>
-              <h3 class="font-semibold">{{ outOfStockProducts().length }} produits en rupture de stock</h3>
-              <p class="text-sm text-gray-600">Action requise immédiatement pour réapprovisionner</p>
-            </div>
-          </div>
-          <button pButton 
-                  label="Voir" 
-                  class="p-button-outlined"
-                  (click)="showOutOfStockDialog = true">
-          </button>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium mb-2">Prix min</label>
+          <p-inputNumber [(ngModel)]="minPrice"
+                         [min]="0"
+                         [maxFractionDigits]="2"
+                         placeholder="0.00"
+                         class="w-full">
+          </p-inputNumber>
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium mb-2">Prix max</label>
+          <p-inputNumber [(ngModel)]="maxPrice"
+                         [min]="0"
+                         [maxFractionDigits]="2"
+                         placeholder="0.00"
+                         class="w-full">
+          </p-inputNumber>
         </div>
       </div>
-    </div>
-  }
-
-  <!-- Statistics -->
-  <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-    <div class="surface-card p-4 shadow-2 rounded">
-      <div class="text-500 font-medium">Total Produits</div>
-      <div class="text-900 text-3xl font-bold">{{ total() }}</div>
-    </div>
-    
-    <div class="surface-card p-4 shadow-2 rounded">
-      <div class="text-500 font-medium">En Stock</div>
-      <div class="text-900 text-3xl font-bold text-green-500">{{ inStockProducts().length }}</div>
-    </div>
-    
-    <div class="surface-card p-4 shadow-2 rounded">
-      <div class="text-500 font-medium">En Rupture</div>
-      <div class="text-900 text-3xl font-bold text-red-500">{{ outOfStockProducts().length }}</div>
-    </div>
-    
-    <div class="surface-card p-4 shadow-2 rounded">
-      <div class="text-500 font-medium">Valeur Totale</div>
-      <div class="text-900 text-3xl font-bold">
-        {{ totalValue() }}
+      
+      <div class="flex items-center">
+        <p-checkbox [(ngModel)]="showInactive" 
+                    [binary]="true"
+                    inputId="showInactive">
+        </p-checkbox>
+        <label for="showInactive" class="ml-2">Afficher les produits inactifs</label>
+      </div>
+      
+      <div class="flex gap-2 pt-4">
+        <button pButton 
+                label="Appliquer" 
+                class="p-button-primary flex-1"
+                (click)="onFilterChange(); showFiltersSidebar = false">
+        </button>
+        
+        <button pButton 
+                label="Réinitialiser" 
+                class="p-button-outlined flex-1"
+                (click)="resetFilters(); showFiltersSidebar = false">
+        </button>
       </div>
     </div>
-  </div>
+  </p-drawer>
 
-  <!-- Products Table -->
-  <p-table [value]="products()" 
-           [lazy]="true" 
-           [paginator]="true" 
-           [rows]="pageSize()"
-           [totalRecords]="total()"
-           [loading]="loading()"
-           (onLazyLoad)="onLazyLoad($event)"
-           [rowsPerPageOptions]="[10, 25, 50]"
-           [tableStyle]="{'min-width': '100rem'}">
-    
-    <ng-template pTemplate="header">
-      <tr>
-        <th style="width: 60px">Image</th>
-        <th>Produit</th>
-        <th>Catégorie</th>
-        <th>SKU</th>
-        <th>Code-barres</th>
-        <th>Prix</th>
-        <th>Stock</th>
-        <th>Statut</th>
-        <th>Actions</th>
-      </tr>
-    </ng-template>
-    
-    <ng-template pTemplate="body" let-product>
-      <tr>
-        <td>
-          @if (product.productImageUrl) {
-            <img [src]="product.productImageUrl" 
-                 [alt]="product.productName"
-                 class="w-12 h-12 rounded-lg object-cover" />
-          } @else {
-            <div class="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-              <i class="pi pi-image text-gray-400"></i>
-            </div>
-          }
-        </td>
-        <td>
-          <div>
-            <div class="font-semibold">{{ product.productName }}</div>
-            <div class="text-sm text-gray-500">{{ product.description?.substring(0, 50) }}...</div>
-          </div>
-        </td>
-        <td>
-          <p-tag [value]="product.categoryName" 
-                 severity="info" />
-        </td>
-        <td>
-          <code class="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">{{ product.sku || 'N/A' }}</code>
-        </td>
-        <td>
-          <code class="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">{{ product.barcode || 'N/A' }}</code>
-        </td>
-        <td>
-          <div class="font-bold text-green-600">{{ product.price | currency:'EUR':'symbol':'1.2-2' }}</div>
-          @if (product.costPrice) {
-            <div class="text-sm text-gray-500">Coût: {{ product.costPrice | currency:'EUR':'symbol':'1.2-2' }}</div>
-          }
-        </td>
-        <td>
-          <div class="space-y-1">
-            <div class="font-semibold">{{ product.quantity || 0 }}</div>
-            <div class="flex items-center text-xs text-gray-500">
-              <span class="mr-2">Min: {{ product.minStock || 0 }}</span>
-              <span>Max: {{ product.maxStock || 0 }}</span>
-            </div>
-            @if (product.maxStock && product.maxStock > 0) {
-              <p-progressBar [value]="getStockPercentage(product)" 
-                             [showValue]="false"
-                             [class]="getProgressBarClass(product)"
-                             style="height: 6px">
-              </p-progressBar>
-            }
-          </div>
-        </td>
-        <td>
-          <p-tag [value]="getStockStatus(product)" 
-                 [severity]="getStockSeverity(product)" />
-          @if (!product.isActive) {
-            <p-badge value="Inactif" severity="danger" class="ml-1"></p-badge>
-          }
-        </td>
-        <td>
-          <div class="flex gap-2">
-            <button pButton 
-                    icon="pi pi-eye" 
-                    class="p-button-rounded p-button-info p-button-text"
-                    (click)="viewProduct(product)"
-                    pTooltip="Voir détails">
-            </button>
-            
-            @if (canManageProducts()) {
-              <button pButton 
-                      icon="pi pi-pencil" 
-                      class="p-button-rounded p-button-warning p-button-text"
-                      (click)="editProduct(product)"
-                      [disabled]="loading()"
-                      pTooltip="Modifier">
-              </button>
-              
-              <button pButton 
-                      icon="pi pi-box" 
-                      class="p-button-rounded p-button-success p-button-text"
-                      (click)="manageStock(product)"
-                      [disabled]="loading()"
-                      pTooltip="Gérer le stock">
-              </button>
-              
-              <button pButton 
-                      [icon]="product.isActive ? 'pi pi-ban' : 'pi pi-check'" 
-                      class="p-button-rounded p-button-secondary p-button-text"
-                      (click)="toggleProductStatus(product)"
-                      [disabled]="loading()"
-                      [pTooltip]="product.isActive ? 'Désactiver' : 'Activer'">
-              </button>
-              
-              <button pButton 
-                      icon="pi pi-trash" 
-                      class="p-button-rounded p-button-danger p-button-text"
-                      (click)="deleteProduct(product)"
-                      [disabled]="loading()"
-                      pTooltip="Supprimer">
-              </button>
-            }
-          </div>
-        </td>
-      </tr>
-    </ng-template>
-    
-    <ng-template pTemplate="emptymessage">
-      <tr>
-        <td colspan="9" class="text-center p-6">
-          <div class="text-500">
-            @if (loading()) {
-              <p class="text-lg">Chargement en cours...</p>
-            } @else {
-              <div class="flex flex-col items-center">
-                <i class="pi pi-shopping-bag text-5xl text-gray-300 mb-4"></i>
-                <p class="text-lg mb-2">Aucun produit trouvé</p>
-                <p class="text-gray-500">Essayez de modifier vos filtres ou d'ajouter un nouveau produit</p>
-              </div>
-            }
-          </div>
-        </td>
-      </tr>
-    </ng-template>
-  </p-table>
-
-  <!-- Out of Stock Dialog -->
-  <p-dialog header="Produits en rupture de stock" 
-            [(visible)]="showOutOfStockDialog" 
+  <!-- Bulk Operations Dialog -->
+  <p-dialog header="Opérations en masse" 
+            [(visible)]="showBulkOperationsDialog" 
             [modal]="true" 
-            [style]="{ width: '800px' }">
-    <div class="space-y-3">
-      @for (product of outOfStockProducts(); track product.productId) {
-        <div class="p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center">
-              @if (product.imageUrl) {
-                <img [src]="product.imageUrl" 
-                     [alt]="product.name"
-                     class="w-10 h-10 rounded-lg object-cover mr-3" />
-              } @else {
-                <div class="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center mr-3">
-                  <i class="pi pi-image text-gray-400"></i>
-                </div>
-              }
-              <div>
-                <div class="font-semibold">{{ product.name }}</div>
-                <div class="text-sm text-gray-500">
-                  {{ product.categoryName }} • 
-                  Dernière mise à jour: {{ product.updatedAt | date:'dd/MM/yyyy' }}
-                </div>
-              </div>
-            </div>
-            <div class="flex gap-2">
-              <button pButton 
-                      icon="pi pi-box" 
-                      label="Gérer stock" 
-                      class="p-button-outlined"
-                      (click)="manageStock(product)">
-              </button>
-              <button pButton 
-                      icon="pi pi-eye" 
-                      class="p-button-text"
-                      (click)="viewProduct(product)">
-              </button>
-            </div>
-          </div>
+            [style]="{ width: '500px' }"
+            [closable]="!bulkLoading()">
+    <div class="space-y-4">
+      <p>Opération sur {{ selectedProducts().length }} produit(s) sélectionné(s)</p>
+      
+      <div>
+        <label class="block text-sm font-medium mb-2">Opération</label>
+        <p-select [options]="bulkOptions" 
+                  [(ngModel)]="bulkOperation"
+                  optionLabel="label"
+                  optionValue="value"
+                  class="w-full">
+        </p-select>
+      </div>
+      
+      @if (bulkOperation() === 'update-category') {
+        <div>
+          <label class="block text-sm font-medium mb-2">Nouvelle catégorie</label>
+          <p-select [options]="categories()" 
+                    [(ngModel)]="newCategoryId"
+                    placeholder="Sélectionner une catégorie"
+                    optionLabel="label"
+                    optionValue="value"
+                    class="w-full">
+          </p-select>
+        </div>
+      }
+      
+      @if (bulkLoading()) {
+        <div class="flex items-center justify-center p-4">
+          <p-progressSpinner />
         </div>
       }
     </div>
     
     <ng-template pTemplate="footer">
       <button pButton 
-              label="Fermer" 
+              label="Annuler" 
               class="p-button-outlined"
-              (click)="showOutOfStockDialog = false">
+              (click)="showBulkOperationsDialog = false"
+              [disabled]="bulkLoading()">
+      </button>
+      
+      <button pButton 
+              label="Exécuter" 
+              class="p-button-primary"
+              (click)="executeBulkOperation()"
+              [disabled]="bulkLoading() || (bulkOperation() === 'update-category' && !newCategoryId())">
       </button>
     </ng-template>
   </p-dialog>
-</div>
+
+  <!-- Import Dialog -->
+  <p-dialog header="Importer des produits" 
+            [(visible)]="showImportDialog" 
+            [modal]="true" 
+            [style]="{ width: '500px' }"
+            [closable]="!importInProgress">
+    <div class="space-y-4">
+      <p>Importez vos produits depuis un fichier CSV ou Excel</p>
+      
+      <div>
+        <label class="block text-sm font-medium mb-2">Fichier</label>
+        <p-fileUpload mode="basic" 
+                      chooseLabel="Choisir un fichier"
+                      accept=".csv,.xlsx,.xls"
+                      [maxFileSize]="1000000"
+                      (onSelect)="onImportFileSelect($event)">
+        </p-fileUpload>
+        
+        @if (importFile) {
+          <div class="mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded">
+            <div class="flex items-center justify-between">
+              <span>{{ importFile.name }}</span>
+              <span>{{ importFile.size | fileSize }}</span>
+            </div>
+          </div>
+        }
+      </div>
+      
+      <div class="text-sm text-gray-500">
+        <p class="font-medium mb-1">Format attendu :</p>
+        <ul class="list-disc pl-5 space-y-1">
+          <li>Nom du produit</li>
+          <li>Description</li>
+          <li>SKU</li>
+          <li>Prix</li>
+          <li>Quantité</li>
+        </ul>
+      </div>
+      
+      @if (importInProgress) {
+        <div class="flex items-center justify-center p-4">
+          <p-progressSpinner />
+        </div>
+      }
+    </div>
+    
+    <ng-template pTemplate="footer">
+      <button pButton 
+              label="Annuler" 
+              class="p-button-outlined"
+              (click)="showImportDialog = false"
+              [disabled]="importInProgress">
+      </button>
+      
+      <button pButton 
+              label="Importer" 
+              class="p-button-primary"
+              (click)="importProducts()"
+              [disabled]="!importFile || importInProgress">
+      </button>
+    </ng-template>
+  </p-dialog>

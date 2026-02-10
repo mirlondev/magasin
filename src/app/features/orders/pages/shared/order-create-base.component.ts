@@ -13,6 +13,7 @@ import { TagModule } from 'primeng/tag';
 import { ToastModule } from 'primeng/toast';
 import { ToolbarModule } from 'primeng/toolbar';
 import { PaginatorModule } from 'primeng/paginator';
+import { SkeletonModule } from 'primeng/skeleton';
 
 import { 
   Product, 
@@ -73,7 +74,7 @@ import { ShiftReportsService } from '../../../../core/services/shift-reports.ser
     </div>
   `
 })
-export class OrderCreateBaseComponent implements OnInit {
+export abstract class OrderCreateBaseComponent implements OnInit {
   // Services
   protected productsService = inject(ProductsService);
   protected categoriesService = inject(CategoriesService);
@@ -84,11 +85,16 @@ export class OrderCreateBaseComponent implements OnInit {
   protected messageService = inject(MessageService);
   protected router = inject(Router);
 
+    protected shiftReady = computed(() => {
+      const shift = this.currentShift();
+      return !!shift && shift.status === ShiftStatus.OPEN;
+    });
+
   // État
   loading = signal(false);
   showCustomerDialog = signal(false);
   currentShift = this.shiftReportsService.selectedShiftReport;
-  
+
   // Filtres produits
   searchTerm = signal('');
   selectedCategoryId = signal<string>('all');
@@ -118,6 +124,8 @@ export class OrderCreateBaseComponent implements OnInit {
     this.loadProducts();
     this.loadCategories();
     this.loadCurrentShift();
+      console.log(this.currentShift());
+
   }
 
   protected loadProducts() {
@@ -138,9 +146,20 @@ export class OrderCreateBaseComponent implements OnInit {
     this.categoriesService.loadCategories(1, 100);
   }
 
-  protected loadCurrentShift() {
-    this.shiftReportsService.getCurrentShift().subscribe();
-  }
+// protected loadCurrentShift() {
+//   this.shiftReady.set(false);
+
+//   this.shiftReportsService.getCurrentShift().subscribe({
+//     next: () => {
+//       this.shiftReady.set(true);
+//     },
+//     error: () => {
+//       this.shiftReady.set(true);
+//     }
+//   });
+// }
+
+
 
   protected refreshData() {
     this.loadProducts();
@@ -166,17 +185,51 @@ export class OrderCreateBaseComponent implements OnInit {
     this.showAddToCartSuccessMessage(product);
   }
 
-  protected canAddToCart(): boolean {
-    return true; // À surcharger si besoin
-  }
-
-  protected showCannotAddToCartMessage() {
-    this.messageService.add({ 
-      severity: 'warn', 
-      summary: 'Action impossible', 
-      detail: 'Impossible d\'ajouter au panier' 
+protected loadCurrentShift() {
+  if (!this.currentShift()) {
+    this.shiftReportsService.getCurrentShift().subscribe({
+      next: (shift) => {
+        this.currentShift.set(shift); // shiftReady sera recalculé automatiquement
+      },
+      error: () => {
+        this.currentShift.set(null);
+      }
     });
   }
+}
+
+
+  protected canAddToCart(): boolean {
+    return (
+      this.shiftReady() &&
+      !!this.currentShift() &&
+      this.currentShift()!.status === ShiftStatus.OPEN
+    );
+  }
+
+
+ protected showCannotAddToCartMessage() {
+    if (!this.shiftReady()) return;
+
+    if (!this.currentShift()) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Caisse fermée',
+        detail: 'Ouvrez une caisse avant d’ajouter des produits'
+      });
+      return;
+    }
+
+    if (this.currentShift()!.status !== ShiftStatus.OPEN) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Session suspendue',
+        detail: 'La session de caisse n’est pas ouverte'
+      });
+    }
+  }
+
+
 
   protected showAddToCartSuccessMessage(product: Product) {
     this.messageService.add({ 
@@ -221,4 +274,6 @@ export class OrderCreateBaseComponent implements OnInit {
   getStockLabel(product: Product): string {
     return getStockLabelUtil(product);
   }
+
+
 }

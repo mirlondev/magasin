@@ -16,6 +16,7 @@ import { ToolbarModule } from "primeng/toolbar";
 import { EmployeeRole, StockStatus } from "../../../core/models";
 import { AuthService } from "../../../core/services/auth.service";
 import { InventoryService } from "../../../core/services/inventory.service";
+import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
 
 @Component({
   selector: 'app-inventory-list',
@@ -33,7 +34,8 @@ import { InventoryService } from "../../../core/services/inventory.service";
     ConfirmDialogModule,
     ToastModule,
     ProgressBarModule,
-    SelectModule
+    SelectModule,
+    XafPipe
 ],
   templateUrl:"./inventory-list.component.html",
   styleUrl:"./inventory-list.component.css"

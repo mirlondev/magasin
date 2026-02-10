@@ -12,12 +12,13 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 
 import { OrderItemsComponent } from '../../components/order-items/order-items.component';
 import { OrderSummaryComponent } from '../../components/order-summary/order-summary.component';
-import { OrderStatus } from '../../../../core/models';
+import { OrderStatus, PaymentMethod } from '../../../../core/models';
 import { OrderCreateBaseComponent } from "../shared/order-create-base.component";
-import { OrdersService } from '../../../../core/services/orders.service';
 import { Tag } from "primeng/tag";
 import { SelectModule } from 'primeng/select';
 import { XafPipe } from '../../../../core/pipes/xaf-currency-pipe';
+import { OrderService } from '../../../../core/services/orders.service';
+import { SkeletonModule } from 'primeng/skeleton';
 
 @Component({
   selector: 'app-proforma',
@@ -35,12 +36,11 @@ import { XafPipe } from '../../../../core/pipes/xaf-currency-pipe';
     ConfirmDialogModule,
     OrderItemsComponent,
     OrderSummaryComponent,
-    OrderCreateBaseComponent,
+    SkeletonModule,
     Tag,
     XafPipe
-],
+  ],
   template: `
-    <app-order-create-base>
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <!-- Colonne gauche - Sélection produits -->
         <div class="lg:col-span-2">
@@ -72,17 +72,30 @@ import { XafPipe } from '../../../../core/pipes/xaf-currency-pipe';
 
             <!-- Grille produits -->
             <div class="border rounded-lg p-4">
-              @if (productsService.loading()) {
-                <div class="text-center py-8">
-                  <i class="pi pi-spin pi-spinner text-4xl text-primary mb-4"></i>
-                  <p class="text-gray-600">Chargement des produits...</p>
-                </div>
-              } @else if (productsService.products().length === 0) {
-                <div class="text-center py-8">
-                  <i class="pi pi-box text-4xl text-gray-400 mb-4"></i>
-                  <p class="text-gray-600">Aucun produit trouvé</p>
-                </div>
-              } @else {
+             @if (!shiftReady()) {
+          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            @for (i of [1,2,3,4,5,6,7,8]; track i) {
+              <p-card>
+                <p-skeleton height="140px" class="mb-3"></p-skeleton>
+                <p-skeleton width="80%" class="mb-2"></p-skeleton>
+                <p-skeleton width="60%"></p-skeleton>
+              </p-card>
+            }
+          </div>
+        }
+        @else {
+          @if (productsService.loading()) {
+            <div class="text-center py-8">
+              <i class="pi pi-spin pi-spinner text-4xl text-primary mb-4"></i>
+              <p class="text-gray-600">Chargement des produits...</p>
+            </div>
+          }
+          @else if (productsService.products().length === 0) {
+            <div class="text-center py-8">
+              <i class="pi pi-box text-4xl text-gray-400 mb-4"></i>
+              <p class="text-gray-600">Aucun produit trouvé</p>
+            </div>
+          } @else {
                 <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   @for (product of productsService.products(); track product.productId) {
                     <div class="product-card border rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
@@ -113,7 +126,7 @@ import { XafPipe } from '../../../../core/pipes/xaf-currency-pipe';
                     </div>
                   }
                 </div>
-              }
+              }}
             </div>
           </p-card>
         </div>
@@ -136,8 +149,8 @@ import { XafPipe } from '../../../../core/pipes/xaf-currency-pipe';
               [customer]="orderState.customer()"
               (updateQuantity)="onUpdateQuantity($event)"
               (removeItem)="onRemoveItem($event)"
-              (customerSelected)="showCustomerDialog.set(true)"
-              (customerRemoved)="removeCustomer()">
+              (selectCustomer)="showCustomerDialog.set(true)"
+              (clearCustomer)="removeCustomer()">
             </app-order-items>
 
             <app-order-summary
@@ -145,7 +158,9 @@ import { XafPipe } from '../../../../core/pipes/xaf-currency-pipe';
               [discountAmount]="orderState.discountAmount()"
               [taxRate]="orderState.taxRate()"
               [taxAmount]="orderState.taxAmount()"
-              [total]="orderState.total()">
+              [total]="orderState.total()"
+              [itemCount]="orderState.itemCount()"
+              [uniqueItems]="orderState.items().length">
             </app-order-summary>
 
             <!-- Proforma Details -->
@@ -184,7 +199,10 @@ import { XafPipe } from '../../../../core/pipes/xaf-currency-pipe';
                     icon="pi pi-file-edit" 
                     class="w-full p-button-help mt-4 text-lg font-bold py-3"
                     (click)="createProforma()"
-                    [disabled]="!canProcess()">
+                    [disabled]="!canProcess() || processing()">
+              @if (processing()) {
+                <i class="pi pi-spin pi-spinner ml-2"></i>
+              }
             </button>
 
             <!-- Additional Actions -->
@@ -207,7 +225,6 @@ import { XafPipe } from '../../../../core/pipes/xaf-currency-pipe';
           </p-card>
         </div>
       </div>
-    </app-order-create-base>
   `,
   styles: [`
     .product-card {
@@ -220,8 +237,8 @@ import { XafPipe } from '../../../../core/pipes/xaf-currency-pipe';
     }
   `]
 })
-export class ProformaComponent extends OrderCreateBaseComponent implements OnInit{
-  private ordersService = inject(OrdersService);
+export class ProformaComponent extends OrderCreateBaseComponent implements OnInit {
+  private ordersService = inject(OrderService);
   private confirmationService = inject(ConfirmationService);
   
   processing = signal(false);
@@ -269,10 +286,12 @@ export class ProformaComponent extends OrderCreateBaseComponent implements OnIni
 
     this.processing.set(true);
 
+    // Create order request WITHOUT payment
+    // Proformas don't have payments - they're just quotes
     const orderRequest = this.orderState.toOrderRequest(
       this.currentShift()?.storeId || '',
       undefined, // No payment method for proforma
-      0 // No payment
+      0 // No payment amount
     );
 
     // Add proforma-specific notes
@@ -286,13 +305,8 @@ export class ProformaComponent extends OrderCreateBaseComponent implements OnIni
     }
     orderRequest.notes = notes;
 
-    // Create order with DRAFT status
-    const proformaRequest = {
-      ...orderRequest,
-      status: OrderStatus.PENDING // Or DRAFT depending on your backend
-    };
-
-    this.ordersService.createOrder(proformaRequest).subscribe({
+    // Create order with PENDING status (proforma)
+    this.ordersService.createOrder(orderRequest).subscribe({
       next: (order) => {
         this.processing.set(false);
         
@@ -348,7 +362,7 @@ export class ProformaComponent extends OrderCreateBaseComponent implements OnIni
       savedAt: new Date().toISOString()
     };
 
-    // Save to localStorage or service
+    // Save to localStorage
     localStorage.setItem('proforma-draft', JSON.stringify(draft));
     
     this.messageService.add({
@@ -368,6 +382,7 @@ export class ProformaComponent extends OrderCreateBaseComponent implements OnIni
       rejectLabel: 'Annuler',
       accept: () => {
         // Navigate to POS sale with current items
+        // The items are already in orderState, so they'll be available
         this.router.navigate(['/orders/pos-sale']);
       }
     });
@@ -408,7 +423,7 @@ export class ProformaComponent extends OrderCreateBaseComponent implements OnIni
     this.proformaNotes = '';
   }
 
-  // Optionally load draft on init
+  // Load draft on init if available
   override ngOnInit() {
     super.ngOnInit();
     this.loadDraft();
@@ -419,11 +434,25 @@ export class ProformaComponent extends OrderCreateBaseComponent implements OnIni
     if (draftJson) {
       try {
         const draft = JSON.parse(draftJson);
-        // Load draft data
-        // Note: This would need product loading logic
-        console.log('Loaded draft:', draft);
+        
+        // Restore form fields
+        this.proformaReference = draft.proformaReference || '';
+        this.validityDays = draft.validityDays || 30;
+        this.proformaNotes = draft.proformaNotes || '';
+        
+        // Note: Restoring items would require re-loading products
+        // This is a simplified version - full implementation would need
+        // to load products and rebuild the cart
+        
+        this.messageService.add({
+          severity: 'info',
+          summary: 'Brouillon chargé',
+          detail: 'Un brouillon précédent a été trouvé',
+          life: 3000
+        });
       } catch (error) {
         console.error('Error loading draft:', error);
+        localStorage.removeItem('proforma-draft');
       }
     }
   }

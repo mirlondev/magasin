@@ -156,7 +156,7 @@ import { DashboardService } from "../../../../core/services/dashboard.service";
                           {{ order.orderNumber }}
                         </a>
                       </td>
-                      <td class="py-3">{{ order.customer?.fullName || 'N/A' }}</td>
+                      <td class="py-3">{{ order.customerName|| 'N/A' }}</td>
                       <td class="py-3 font-semibold">{{ order.totalAmount | currency:'EUR':'symbol':'1.2-2' }}</td>
                       <td class="py-3">
                         <p-tag [value]="getOrderStatusLabel(order.status)" 

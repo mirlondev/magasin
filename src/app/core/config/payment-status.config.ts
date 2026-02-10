@@ -2,7 +2,7 @@ import { PaymentStatus } from '../models';
 import { StatusUiMap } from '../utils/status-ui.utils';
 
 export const PAYMENT_STATUS_UI: StatusUiMap<PaymentStatus> = {
-  [PaymentStatus.PENDING]: {
+  [PaymentStatus.UNPAID]: {
     label: 'En attente',
     severity: 'warn'
   },
@@ -25,5 +25,10 @@ export const PAYMENT_STATUS_UI: StatusUiMap<PaymentStatus> = {
   [PaymentStatus.CANCELLED]: {
     label: 'Annulée',
     severity: 'danger'
+  },
+  [PaymentStatus.CREDIT]: {
+    label: 'Crédit',
+    severity: 'info'
   }
+  
 };

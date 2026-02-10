@@ -74,7 +74,6 @@
                     icon="pi pi-filter-slash" 
                     label="Réinitialiser" 
                     class="p-button-outlined w-full"
-                    style="height: 38px"
                     (click)="resetFilters()">
             </button>
           </div>
@@ -134,7 +133,7 @@
         <div class="surface-card p-4 shadow-2 rounded">
           <div class="text-500 font-medium">Valeur Totale</div>
           <div class="text-900 text-3xl font-bold">
-            {{ totalValue() | currency:'EUR':'symbol':'1.2-2' }}
+            {{ totalValue() | xaf }}
           </div>
         </div>
         
@@ -220,8 +219,8 @@
                 <p-tag value="Excédent" severity="info" class="ml-1" />
               }
             </td>
-            <td class="font-semibold">{{ item.sellingPrice | currency:'EUR':'symbol':'1.2-2' }}</td>
-            <td class="font-semibold">{{ item.totalValue | currency:'EUR':'symbol':'1.2-2' }}</td>
+            <td class="font-semibold">{{ item.sellingPrice | xaf }}</td>
+            <td class="font-semibold">{{ item.totalValue | xaf }}</td>
             <td>
               <div class="flex gap-2">
                 <button pButton 

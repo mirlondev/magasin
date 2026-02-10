@@ -19,6 +19,7 @@ import { PaginatorModule } from "primeng/paginator";
 import { 
   Category, 
   Product, 
+  Order,
   OrderRequest, 
   OrderItemRequest, 
   PaymentMethod, 
@@ -29,7 +30,7 @@ import {
 } from "../../../core/models";
 import { ProductsService } from "../../../core/services/products.service";
 import { CategoriesService } from "../../../core/services/categories.service";
-import { OrdersService } from "../../../core/services/orders.service";
+import { OrderService } from "../../../core/services/orders.service";
 import { CustomersService } from "../../../core/services/customers.service";
 import { AuthService } from "../../../core/services/auth.service";
 import { ShiftReportsService } from "../../../core/services/shift-reports.service";
@@ -658,7 +659,7 @@ import { getStockLabel, getStockSeverity } from "../../../core/utils/status-ui.u
 export class OrderCreateComponent implements OnInit {
   private productsService = inject(ProductsService);
   private categoriesService = inject(CategoriesService);
-  private ordersService = inject(OrdersService);
+  private ordersService = inject(OrderService);
   private customersService = inject(CustomersService);
   private authService = inject(AuthService);
   private shiftReportsService = inject(ShiftReportsService);
@@ -1142,7 +1143,7 @@ export class OrderCreateComponent implements OnInit {
     console.log('Creating order:', orderRequest);
 
     this.ordersService.createOrder(orderRequest).subscribe({
-      next: (order) => {
+      next: (order: Order) => {
         this.submitting.set(false);
         this.showCheckoutDialog = false;
         this.cart.set([]);
@@ -1182,7 +1183,7 @@ export class OrderCreateComponent implements OnInit {
 
   generateReceipt(orderId: string) {
     this.ordersService.generateInvoice(orderId).subscribe({
-      next: (blob) => {
+      next: (blob: Blob) => {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -1190,7 +1191,7 @@ export class OrderCreateComponent implements OnInit {
         a.click();
         window.URL.revokeObjectURL(url);
       },
-      error: (error) => {
+      error: (error: any) => {
         console.error('Error generating receipt:', error);
         this.messageService.add({
           severity: 'warn',

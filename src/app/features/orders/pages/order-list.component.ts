@@ -8,24 +8,17 @@ import { ConfirmDialogModule } from "primeng/confirmdialog";
 import { DatePickerModule } from "primeng/datepicker";
 import { DialogModule } from "primeng/dialog";
 import { InputTextModule } from "primeng/inputtext";
-import { Select, SelectModule } from "primeng/select";
+import { SelectModule } from "primeng/select";
 import { TableModule } from "primeng/table";
 import { TagModule } from "primeng/tag";
 import { ToastModule } from "primeng/toast";
 import { ToolbarModule } from "primeng/toolbar";
 import { EmployeeRole, Order, OrderStatus, PaymentStatus } from "../../../core/models";
 import { AuthService } from "../../../core/services/auth.service";
-import { OrdersService } from "../../../core/services/orders.service";
-import {
-  getStatusLabel as getStatusLabelUtil,
-  getStatusSeverity as getStatusSeverityUtil,
-  StatusUiMap
-} from '../../../core/utils/status-ui.utils';
-
-import { ORDER_STATUS_UI } from '../../../core/config/order-status.config';
-import { PAYMENT_STATUS_UI } from '../../../core/config/payment-status.config';
 import { PosPermissionService } from "../../../core/services/pos-permission.service";
-
+import { OrderService } from "../../../core/services/orders.service";
+import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
+import { OrderHelper } from "../../../core/utils/helpers";
 
 @Component({
   selector: 'app-order-list',
@@ -43,10 +36,11 @@ import { PosPermissionService } from "../../../core/services/pos-permission.serv
     ToolbarModule,
     ConfirmDialogModule,
     ToastModule,
-    SelectModule
-],
+    SelectModule,
+    XafPipe
+  ],
   template: `
-    <div class="p-4 p-4">
+    <div class="p-4">
       <p-toast />
       <p-confirmDialog />
 
@@ -76,7 +70,7 @@ import { PosPermissionService } from "../../../core/services/pos-permission.serv
       </p-toolbar>
 
       <!-- Filters -->
-      <div class="p-4 surface-ground rounded mb-4">
+      <div class="p-4 surface-ground rounded mb-4 mt-4">
         <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
           <div>
             <label class="block text-sm font-medium mb-2">Recherche</label>
@@ -117,8 +111,7 @@ import { PosPermissionService } from "../../../core/services/pos-permission.serv
                        [showIcon]="true"
                        dateFormat="dd/mm/yy"
                        placeholder="Sélectionner une période"
-                       class="w-full"
-          />
+                       class="w-full" />
           </div>
           
           <div class="flex items-end">
@@ -172,6 +165,7 @@ import { PosPermissionService } from "../../../core/services/pos-permission.serv
             <th pSortableColumn="customer.fullName">Client <p-sortIcon field="customer.fullName" /></th>
             <th pSortableColumn="status">Statut <p-sortIcon field="status" /></th>
             <th pSortableColumn="paymentStatus">Paiement <p-sortIcon field="paymentStatus" /></th>
+            <th>Paiements</th>
             <th pSortableColumn="totalAmount">Montant <p-sortIcon field="totalAmount" /></th>
             <th pSortableColumn="createdAt">Date <p-sortIcon field="createdAt" /></th>
             <th>Actions</th>
@@ -188,29 +182,50 @@ import { PosPermissionService } from "../../../core/services/pos-permission.serv
             </td>
             <td>{{ order.customer?.fullName || 'N/A' }}</td>
             <td>
-              <p-tag [value]="getStatusLabel(order.status)" 
-                     [severity]="getStatusSeverity(order.status)" />
+              <p-tag [value]="OrderHelper.getOrderStatusLabel(order.status)" 
+                     [severity]="OrderHelper.getOrderStatusSeverity(order.status)" />
             </td>
             <td>
-              <p-tag [value]="getPaymentStatusLabel(order.paymentStatus)" 
-                     [severity]="getPaymentStatusSeverity(order.paymentStatus)" />
+              <p-tag [value]="OrderHelper.getPaymentStatusLabel(order.paymentStatus)" 
+                     [severity]="OrderHelper.getPaymentStatusSeverity(order.paymentStatus)" />
             </td>
-            <td class="font-semibold">{{ order.totalAmount | currency:'EUR':'symbol':'1.2-2' }}</td>
+            <td>
+              <div class="text-sm">
+                @if (order.payments && order.payments.length > 0) {
+                  <div class="flex flex-col gap-1">
+                    <span class="font-medium">{{ order.payments.length }} paiement(s)</span>
+                    <span class="text-gray-500">
+                      Payé: {{ getTotalPaid(order) | xaf }}
+                    </span>
+                    @if (getRemainingAmount(order) > 0) {
+                      <span class="text-orange-500 text-xs">
+                        Reste: {{ getRemainingAmount(order) | xaf }}
+                      </span>
+                    }
+                  </div>
+                } @else {
+                  <span class="text-gray-400">Aucun paiement</span>
+                }
+              </div>
+            </td>
+            <td class="font-semibold">{{ order.totalAmount | xaf }}</td>
             <td>{{ order.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
             <td>
               <div class="flex gap-2">
                 <button pButton 
                         icon="pi pi-eye" 
                         class="p-button-rounded p-button-info p-button-text"
-                        [routerLink]="['/orders', order.orderId]">
+                        [routerLink]="['/orders', order.orderId]"
+                        pTooltip="Voir détails">
                 </button>
                 
-                @if (canProcessPayment(order)) {
+                @if (canAddPayment(order)) {
                   <button pButton 
                           icon="pi pi-credit-card" 
                           class="p-button-rounded p-button-success p-button-text"
-                          (click)="processPayment(order)"
-                          [disabled]="loading()">
+                          (click)="addPayment(order)"
+                          [disabled]="loading()"
+                          pTooltip="Ajouter paiement">
                   </button>
                 }
                 
@@ -219,7 +234,8 @@ import { PosPermissionService } from "../../../core/services/pos-permission.serv
                           icon="pi pi-check" 
                           class="p-button-rounded p-button-help p-button-text"
                           (click)="completeOrder(order)"
-                          [disabled]="loading()">
+                          [disabled]="loading()"
+                          pTooltip="Terminer">
                   </button>
                 }
                 
@@ -228,7 +244,8 @@ import { PosPermissionService } from "../../../core/services/pos-permission.serv
                           icon="pi pi-times" 
                           class="p-button-rounded p-button-danger p-button-text"
                           (click)="confirmCancel(order)"
-                          [disabled]="loading()">
+                          [disabled]="loading()"
+                          pTooltip="Annuler">
                   </button>
                 }
                 
@@ -236,7 +253,8 @@ import { PosPermissionService } from "../../../core/services/pos-permission.serv
                         icon="pi pi-file-pdf" 
                         class="p-button-rounded p-button-warning p-button-text"
                         (click)="generateInvoice(order.orderId)"
-                        [disabled]="loading()">
+                        [disabled]="loading()"
+                        pTooltip="Facture PDF">
                 </button>
               </div>
             </td>
@@ -245,7 +263,7 @@ import { PosPermissionService } from "../../../core/services/pos-permission.serv
         
         <ng-template pTemplate="emptymessage">
           <tr>
-            <td colspan="7" class="text-center p-6">
+            <td colspan="8" class="text-center p-6">
               <div class="text-500">
                 @if (loading()) {
                   <p class="text-lg">Chargement en cours...</p>
@@ -261,11 +279,11 @@ import { PosPermissionService } from "../../../core/services/pos-permission.serv
   `
 })
 export class OrderListComponent implements OnInit {
-  private ordersService = inject(OrdersService);
+  private ordersService = inject(OrderService);
   private confirmationService = inject(ConfirmationService);
   private messageService = inject(MessageService);
   private authService = inject(AuthService);
-  private posPermissionService=inject(PosPermissionService);
+  private posPermissionService = inject(PosPermissionService);
   private router = inject(Router);
 
   // Signals from service
@@ -276,6 +294,7 @@ export class OrderListComponent implements OnInit {
   pendingOrders = this.ordersService.pendingOrders;
   processingOrders = this.ordersService.processingOrders;
   completedOrders = this.ordersService.completedOrders;
+  protected readonly OrderHelper = OrderHelper;
 
   // Local signals
   filters = signal({
@@ -299,12 +318,11 @@ export class OrderListComponent implements OnInit {
   ];
 
   paymentStatusOptions = [
-    { label: 'En attente', value: PaymentStatus.PENDING },
-    { label: 'Payée', value: PaymentStatus.PAID },
-    { label: 'Partiellement payée', value: PaymentStatus.PARTIALLY_PAID },
-    { label: 'Échouée', value: PaymentStatus.FAILED },
-    { label: 'Remboursée', value: PaymentStatus.REFUNDED },
-    { label: 'Annulée', value: PaymentStatus.CANCELLED }
+    { label: 'Non payé', value: PaymentStatus.UNPAID },
+    { label: 'Partiellement payé', value: PaymentStatus.PARTIALLY_PAID },
+    { label: 'Payé', value: PaymentStatus.PAID },
+    { label: 'Crédit', value: PaymentStatus.CREDIT },
+    { label: 'Annulé', value: PaymentStatus.CANCELLED }
   ];
 
   ngOnInit() {
@@ -316,12 +334,12 @@ export class OrderListComponent implements OnInit {
     return this.posPermissionService.canCreateOrder();
   }
 
-  canProcessPayment(order: Order): boolean {
+  canAddPayment(order: Order): boolean {
     if (!this.authService.hasRole([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER])) {
       return false;
     }
-    return order.paymentStatus === PaymentStatus.PENDING || 
-           order.paymentStatus === PaymentStatus.PARTIALLY_PAID;
+    // Can add payment if there's remaining amount
+    return OrderHelper.getRemainingAmount(order) > 0;
   }
 
   canCompleteOrder(order: Order): boolean {
@@ -340,24 +358,35 @@ export class OrderListComponent implements OnInit {
            order.status !== OrderStatus.COMPLETED;
   }
 
+  // UI Helpers
+  getStatusLabel(status: OrderStatus): string {
+    return OrderHelper.getOrderStatusLabel(status);
+  }
 
-// UI Helpers (delegation)
-getStatusLabel(status: OrderStatus): string {
-  return getStatusLabelUtil(status, ORDER_STATUS_UI);
-}
+  getStatusSeverity(status: OrderStatus): any {
+    return OrderHelper.getOrderStatusSeverity(status);
+  }
 
-getStatusSeverity(status: OrderStatus) {
-  return getStatusSeverityUtil(status, ORDER_STATUS_UI);
-}
+  getPaymentStatusLabel(status: PaymentStatus): string {
+    return OrderHelper.getPaymentStatusLabel(status);
+  }
 
-getPaymentStatusLabel(status: PaymentStatus): string {
-  return getStatusLabelUtil(status, PAYMENT_STATUS_UI);
-}
+  getPaymentStatusSeverity(status: PaymentStatus): any {
+    return OrderHelper.getPaymentStatusSeverity(status);
+  }
 
-getPaymentStatusSeverity(status: PaymentStatus) {
-  return getStatusSeverityUtil(status, PAYMENT_STATUS_UI);
-}
+  // Payment helpers using OrderHelper
+  getTotalPaid(order: Order): number {
+    return OrderHelper.getTotalPaid(order.payments || []);
+  }
 
+  getTotalCredit(order: Order): number {
+    return OrderHelper.getTotalCredit(order.payments || []);
+  }
+
+  getRemainingAmount(order: Order): number {
+    return OrderHelper.getRemainingAmount(order);
+  }
 
   // Event Handlers
   loadOrders() {
@@ -408,18 +437,22 @@ getPaymentStatusSeverity(status: PaymentStatus) {
   }
 
   // Operations
-  processPayment(order: Order) {
-    this.router.navigate(['/orders', order.orderId, 'payment']);
+  addPayment(order: Order) {
+    // Navigate to order detail with payment action
+    this.router.navigate(['/orders', order.orderId], {
+      queryParams: { action: 'add-payment' }
+    });
   }
 
   completeOrder(order: Order) {
-    this.ordersService.completeOrder(order.orderId).subscribe({
+    this.ordersService.markAsCompleted(order.orderId).subscribe({
       next: () => {
         this.messageService.add({
           severity: 'success',
           summary: 'Succès',
           detail: 'Commande terminée avec succès'
         });
+        this.loadOrders();
       }
     });
   }
@@ -436,13 +469,14 @@ getPaymentStatusSeverity(status: PaymentStatus) {
   }
 
   cancelOrder(orderId: string) {
-    this.ordersService.cancelOrder(orderId, 'Annulée par l\'utilisateur').subscribe({
+    this.ordersService.cancelOrder(orderId, OrderStatus.CANCELLED).subscribe({
       next: () => {
         this.messageService.add({
           severity: 'success',
           summary: 'Succès',
           detail: 'Commande annulée avec succès'
         });
+        this.loadOrders();
       }
     });
   }
@@ -461,7 +495,6 @@ getPaymentStatusSeverity(status: PaymentStatus) {
   }
 
   exportOrders() {
-    // Implémenter l'export CSV/Excel
     this.messageService.add({
       severity: 'info',
       summary: 'Export',
@@ -469,5 +502,3 @@ getPaymentStatusSeverity(status: PaymentStatus) {
     });
   }
 }
-
-

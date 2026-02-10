@@ -11,7 +11,6 @@ import { ToastModule } from 'primeng/toast';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 
 import { PaymentCashComponent } from '../../components/payment-cash/payment-cash.component';
-import { OrdersService } from '../../../../core/services/orders.service';
 import { PaymentMethod, OrderStatus, PaymentStatus, ShiftStatus } from '../../../../core/models';
 import { OrderCreateBaseComponent } from '../shared/order-create-base.component';
 import { OrderItemsComponent } from "../../components/order-items/order-items.component";
@@ -19,6 +18,15 @@ import { OrderSummaryComponent } from "../../components/order-summary/order-summ
 import { XafPipe } from '../../../../core/pipes/xaf-currency-pipe';
 import { TagModule } from 'primeng/tag';
 import { SelectModule } from 'primeng/select';
+import { OrderService } from '../../../../core/services/orders.service';
+import { OrderHelper } from '../../../../core/utils/helpers';
+import { SkeletonModule } from 'primeng/skeleton';
+
+interface PaymentEntry {
+  method: PaymentMethod;
+  amount: number;
+  notes?: string;
+}
 
 @Component({
   selector: 'app-pos-sale',
@@ -38,11 +46,10 @@ import { SelectModule } from 'primeng/select';
     PaymentCashComponent,
     OrderItemsComponent,
     OrderSummaryComponent,
-    OrderCreateBaseComponent,
-    XafPipe
-],
+    XafPipe,
+    SkeletonModule
+  ],
   template: `
-    <app-order-create-base>
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <!-- Colonne gauche - Sélection produits -->
         <div class="lg:col-span-2">
@@ -74,47 +81,62 @@ import { SelectModule } from 'primeng/select';
 
             <!-- Grille produits -->
             <div class="border rounded-lg p-4">
-              @if (productsService.loading()) {
-                <div class="text-center py-8">
-                  <i class="pi pi-spin pi-spinner text-4xl text-primary mb-4"></i>
-                  <p class="text-gray-600">Chargement des produits...</p>
-                </div>
-              } @else if (productsService.products().length === 0) {
-                <div class="text-center py-8">
-                  <i class="pi pi-box text-4xl text-gray-400 mb-4"></i>
-                  <p class="text-gray-600">Aucun produit trouvé</p>
-                </div>
-              } @else {
+              @if (!shiftReady()) {
                 <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  @for (product of productsService.products(); track product.productId) {
-                    <div class="product-card border rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
-                         (click)="addToCart(product)">
-                      <div class="aspect-square bg-gray-100 relative overflow-hidden">
-                        @if (getProductImage(product)) {
-                          <img [src]="getProductImage(product)" 
-                               [alt]="product.name"
-                               class="w-full h-full object-cover" />
-                        } @else {
-                          <div class="w-full h-full flex items-center justify-center">
-                            <i class="pi pi-image text-gray-300 text-3xl"></i>
-                          </div>
-                        }
-                        <div class="absolute top-2 right-2">
-                          <p-tag [value]="getStockLabel(product)" 
-                                 [severity]="getStockSeverity(product)"
-                                 size="small" />
-                        </div>
-                      </div>
-                      <div class="p-3">
-                        <div class="font-semibold text-sm truncate mb-1">{{ product.name }}</div>
-                        <div class="flex justify-between items-center">
-                          <div class="text-xs text-gray-500">{{ product.sku || 'N/A' }}</div>
-                          <div class="font-bold text-primary">{{ product.price | xaf}}</div>
-                        </div>
-                      </div>
-                    </div>
+                  @for (i of [1,2,3,4,5,6,7,8]; track i) {
+                    <p-card>
+                      <p-skeleton height="140px" class="mb-3"></p-skeleton>
+                      <p-skeleton width="80%" class="mb-2"></p-skeleton>
+                      <p-skeleton width="60%"></p-skeleton>
+                    </p-card>
                   }
                 </div>
+              }
+              @else {
+                @if (productsService.loading()) {
+                  <div class="text-center py-8">
+                    <i class="pi pi-spin pi-spinner text-4xl text-primary mb-4"></i>
+                    <p class="text-gray-600">Chargement des produits...</p>
+                  </div>
+                }
+                @else if (productsService.products().length === 0) {
+                  <div class="text-center py-8">
+                    <i class="pi pi-box text-4xl text-gray-400 mb-4"></i>
+                    <p class="text-gray-600">Aucun produit trouvé</p>
+                  </div>
+                }
+                @else {
+                  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    @for (product of productsService.products(); track product.productId) {
+                      <div class="product-card border rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+                           (click)="addToCart(product)">
+                        <div class="aspect-square bg-gray-100 relative overflow-hidden">
+                          @if (getProductImage(product)) {
+                            <img [src]="getProductImage(product)" 
+                                 [alt]="product.name"
+                                 class="w-full h-full object-cover" />
+                          } @else {
+                            <div class="w-full h-full flex items-center justify-center">
+                              <i class="pi pi-image text-gray-300 text-3xl"></i>
+                            </div>
+                          }
+                          <div class="absolute top-2 right-2">
+                            <p-tag [value]="getStockLabel(product)" 
+                                   [severity]="getStockSeverity(product)"
+                                   size="small" />
+                          </div>
+                        </div>
+                        <div class="p-3">
+                          <div class="font-semibold text-sm truncate mb-1">{{ product.name }}</div>
+                          <div class="flex justify-between items-center">
+                            <div class="text-xs text-gray-500">{{ product.sku || 'N/A' }}</div>
+                            <div class="font-bold text-primary">{{ product.price | xaf}}</div>
+                          </div>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                }
               }
             </div>
           </p-card>
@@ -128,8 +150,8 @@ import { SelectModule } from 'primeng/select';
               [customer]="orderState.customer()"
               (updateQuantity)="onUpdateQuantity($event)"
               (removeItem)="onRemoveItem($event)"
-              (customerSelected)="showCustomerDialog.set(true)"
-              (customerRemoved)="removeCustomer()">
+              (selectCustomer)="showCustomerDialog.set(true)"
+              (clearCustomer)="removeCustomer()">
             </app-order-items>
 
             <app-order-summary
@@ -137,10 +159,12 @@ import { SelectModule } from 'primeng/select';
               [discountAmount]="orderState.discountAmount()"
               [taxRate]="orderState.taxRate()"
               [taxAmount]="orderState.taxAmount()"
-              [total]="orderState.total()">
+              [total]="orderState.total()"
+              [itemCount]="orderState.itemCount()"
+              [uniqueItems]="orderState.items().length">
             </app-order-summary>
 
-            <!-- Bouton PAIER -->
+            <!-- Bouton PAYER -->
             <button pButton 
                     label="PAYER" 
                     icon="pi pi-credit-card" 
@@ -169,7 +193,6 @@ import { SelectModule } from 'primeng/select';
           (cancel)="showPaymentDialog = false">
         </app-payment-cash>
       }
-    </app-order-create-base>
   `,
   styles: [`
     .product-card {
@@ -183,9 +206,9 @@ import { SelectModule } from 'primeng/select';
   `]
 })
 export class PosSaleComponent extends OrderCreateBaseComponent {
-  private ordersService = inject(OrdersService);
+  private ordersService = inject(OrderService);
   private confirmationService = inject(ConfirmationService);
-  
+
   showPaymentDialog = false;
   processing = signal(false);
 
@@ -212,30 +235,20 @@ export class PosSaleComponent extends OrderCreateBaseComponent {
     this.loadProducts();
   }
 
-  onPaymentComplete(event: {
-    paymentMethod: PaymentMethod;
-    amountPaid: number;
-    changeAmount: number;
-    notes?: string;
-  }) {
-    this.processOrderWithPayment(event);
+  onPaymentComplete(payments: PaymentEntry[]) {
+    this.processOrderWithPayments(payments);
   }
 
-  private processOrderWithPayment(paymentData: {
-    paymentMethod: PaymentMethod;
-    amountPaid: number;
-    changeAmount: number;
-    notes?: string;
-  }) {
+  private processOrderWithPayments(payments: PaymentEntry[]) {
     if (this.processing()) return;
 
     const validation = this.orderState.validateForPosSale();
     if (!validation.valid) {
-      validation.errors.forEach(error => 
-        this.messageService.add({ 
-          severity: 'error', 
-          summary: 'Erreur', 
-          detail: error 
+      validation.errors.forEach(error =>
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erreur',
+          detail: error
         })
       );
       return;
@@ -250,44 +263,46 @@ export class PosSaleComponent extends OrderCreateBaseComponent {
       return;
     }
 
-    this.processing.set(true);
-
-    const orderRequest = this.orderState.toOrderRequest(
-      this.currentShift()!.storeId,
-      paymentData.paymentMethod,
-      paymentData.amountPaid
-    );
-
-    // Ajouter les notes de paiement
-    if (paymentData.notes) {
-      orderRequest.notes = orderRequest.notes 
-        ? `${orderRequest.notes}\n${paymentData.notes}`
-        : paymentData.notes;
+    if (payments.length === 0) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Aucun paiement',
+        detail: 'Veuillez ajouter au moins un paiement'
+      });
+      return;
     }
 
+    this.processing.set(true);
+
+    // Create order with first payment (for backward compatibility)
+    const firstPayment = payments[0];
+    const orderRequest = this.orderState.toOrderRequest(
+      this.currentShift()!.storeId,
+      firstPayment.method,
+      firstPayment.amount
+    );
+
+    // Combine all payment notes
+    const paymentNotes = payments
+      .filter(p => p.notes)
+      .map(p => `${this.getPaymentMethodLabel(p.method)}: ${p.notes}`)
+      .join('\n');
+
+    if (paymentNotes) {
+      orderRequest.notes = orderRequest.notes
+        ? `${orderRequest.notes}\n${paymentNotes}`
+        : paymentNotes;
+    }
+
+    // Create the order
     this.ordersService.createOrder(orderRequest).subscribe({
       next: (order) => {
-        this.processing.set(false);
-        this.showPaymentDialog = false;
-        this.orderState.clear();
-        
-        this.messageService.add({ 
-          severity: 'success', 
-          summary: 'Vente validée', 
-          detail: `Commande #${order.orderNumber} enregistrée`,
-          life: 5000 
-        });
-        
-        // Impression automatique du ticket
-        this.confirmationService.confirm({
-          message: 'Voulez-vous imprimer le ticket de caisse ?',
-          header: 'Impression',
-          icon: 'pi pi-print',
-          acceptLabel: 'Imprimer',
-          rejectLabel: 'Plus tard',
-          accept: () => this.generateReceipt(order.orderId),
-          reject: () => this.goBack()
-        });
+        // If there are additional payments, add them
+        if (payments.length > 1) {
+          this.addAdditionalPayments(order.orderId, payments.slice(1));
+        } else {
+          this.handleOrderSuccess(order.orderId, order.orderNumber);
+        }
       },
       error: (error) => {
         this.processing.set(false);
@@ -295,9 +310,67 @@ export class PosSaleComponent extends OrderCreateBaseComponent {
         this.messageService.add({
           severity: 'error',
           summary: 'Erreur',
-          detail: 'Erreur lors de la création de la commande'
+          detail: error?.error?.message || 'Erreur lors de la création de la commande'
         });
       }
+    });
+  }
+
+  private addAdditionalPayments(orderId: string, additionalPayments: PaymentEntry[]) {
+    // Add additional payments sequentially
+    const paymentRequests = additionalPayments.map(payment => ({
+      method: payment.method,
+      amount: payment.amount,
+      notes: payment.notes
+    }));
+
+    // Process all additional payments
+    Promise.all(
+      paymentRequests.map(req =>
+        this.ordersService.addPayment(orderId, req).toPromise()
+      )
+    ).then(() => {
+      // Get order number for success message
+      this.ordersService.getOrderById(orderId).subscribe({
+        next: (order) => {
+          this.handleOrderSuccess(orderId, order.orderNumber);
+        },
+        error: () => {
+          this.handleOrderSuccess(orderId, 'N/A');
+        }
+      });
+    }).catch(error => {
+      console.error('Error adding additional payments:', error);
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Paiements partiels',
+        detail: 'Certains paiements n\'ont pas pu être ajoutés'
+      });
+      this.handleOrderSuccess(orderId, 'N/A');
+    });
+  }
+
+  private handleOrderSuccess(orderId: string, orderNumber: string) {
+    this.processing.set(false);
+    this.showPaymentDialog = false;
+    this.orderState.clear();
+
+    this.messageService.add({
+      severity: 'success',
+      summary: 'Vente validée',
+      detail: `Commande #${orderNumber} enregistrée`,
+      life: 5000
+    });
+
+    // Impression automatique du ticket
+    this.confirmationService.confirm({
+      message: 'Voulez-vous imprimer le ticket de caisse ?',
+      header: 'Impression',
+      icon: 'pi pi-print',
+      acceptLabel: 'Imprimer',
+      rejectLabel: 'Plus tard',
+      accept: () => this.generateReceipt(orderId),
+      reject: () => this.goBack()
     });
   }
 
@@ -328,6 +401,10 @@ export class PosSaleComponent extends OrderCreateBaseComponent {
     });
   }
 
+  private getPaymentMethodLabel(method: PaymentMethod): string {
+    return OrderHelper.getPaymentMethodLabel(method);
+  }
+
   // Surdéfinition pour validation spécifique POS
   protected override canAddToCart(): boolean {
     return !!this.currentShift() && this.currentShift()!.status === ShiftStatus.OPEN;
@@ -335,16 +412,16 @@ export class PosSaleComponent extends OrderCreateBaseComponent {
 
   protected override showCannotAddToCartMessage() {
     if (!this.currentShift()) {
-      this.messageService.add({ 
-        severity: 'warn', 
-        summary: 'Caisse fermée', 
-        detail: 'Ouvrez une caisse avant d\'ajouter des produits' 
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Caisse fermée',
+        detail: 'Ouvrez une caisse avant d\'ajouter des produits'
       });
     } else if (this.currentShift()!.status !== ShiftStatus.OPEN) {
-      this.messageService.add({ 
-        severity: 'warn', 
-        summary: 'Session suspendue', 
-        detail: 'La session de caisse n\'est pas ouverte' 
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Session suspendue',
+        detail: 'La session de caisse n\'est pas ouverte'
       });
     }
   }
