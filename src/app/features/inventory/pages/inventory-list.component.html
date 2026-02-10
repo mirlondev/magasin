@@ -1,154 +1,191 @@
-  <div class="p-4">
-      <p-toast />
-      <p-confirmDialog />
+<!-- inventory-list.component.html -->
+<div class="p-4">
+  <p-toast />
+  <p-confirmDialog />
 
-      <!-- Toolbar -->
-      <p-toolbar>
-        <div class="p-toolbar-group-start">
-          <h2 class="text-2xl font-bold">Gestion de l'Inventaire</h2>
-        </div>
+  <!-- Toolbar -->
+  <p-toolbar>
+    <div class="p-toolbar-group-start">
+      <h2 class="text-2xl font-bold">Gestion de l'Inventaire</h2>
+    </div>
+    
+    <div class="p-toolbar-group-end flex items-center gap-2">
+      <!-- Theme toggle -->
+      <button pButton 
+              [icon]="isDarkMode() ? 'pi pi-sun' : 'pi pi-moon'"
+              class="p-button-rounded p-button-text"
+              (click)="showThemeDrawer = true"
+              pTooltip="Thème">
+      </button>
+
+      <!-- Statistics toggle -->
+      <button pButton 
+              icon="pi pi-chart-bar" 
+              class="p-button-rounded p-button-text"
+              (click)="loadStatistics()"
+              pTooltip="Statistiques">
+      </button>
+
+      <!-- Predictions toggle -->
+      <button pButton 
+              icon="pi pi-chart-line" 
+              class="p-button-rounded p-button-text"
+              (click)="loadPredictions()"
+              pTooltip="Prédictions">
+      </button>
+
+      <!-- Bulk actions button -->
+      @if (selectedItems().length > 0) {
+        <button pButton 
+                icon="pi pi-cog" 
+                [label]="'Actions (' + selectedItems().length + ')'"
+                class="p-button-warning mr-2"
+                (click)="showBulkOperationsDrawer = true">
+        </button>
+      }
+
+      <!-- Filters toggle -->
+      <button pButton 
+              icon="pi pi-filter" 
+              class="p-button-outlined mr-2"
+              (click)="showFiltersDrawer = true">
+      </button>
+      
+      @if (canManageInventory()) {
+        <button pButton 
+                icon="pi pi-upload" 
+                label="Importer" 
+                class="p-button-help mr-2"
+                (click)="showImportDialog = true">
+        </button>
         
-        <div class="p-toolbar-group-end">
-          @if (canManageInventory()) {
-            <button pButton 
-                    icon="pi pi-plus" 
-                    label="Nouvel Article" 
-                    class="p-button-success mr-4"
-                    [routerLink]="['/inventory/new']">
-            </button>
-          }
-          
-          <button pButton 
-                  icon="pi pi-file-export" 
-                  label="Rapport" 
-                  class="p-button-help mr-4"
-                  (click)="generateReport()">
-          </button>
-          
-          <button pButton 
-                  icon="pi pi-refresh" 
-                  label="Actualiser" 
-                  class="p-button-outlined"
-                  (click)="refresh()"
-                  [disabled]="loading()">
-          </button>
-        </div>
-      </p-toolbar>
+        <button pButton 
+                icon="pi pi-plus" 
+                label="Nouvel Article" 
+                class="p-button-success mr-2"
+                [routerLink]="['/inventory/new']">
+        </button>
+      }
+      
+      <button pButton 
+              icon="pi pi-file-export" 
+              label="Exporter" 
+              class="p-button-outlined mr-2"
+              (click)="exportInventory('csv')">
+      </button>
+      
+      <button pButton 
+              icon="pi pi-refresh" 
+              class="p-button-rounded p-button-text"
+              (click)="refresh()"
+              [disabled]="loading()"
+              pTooltip="Actualiser">
+      </button>
+    </div>
+  </p-toolbar>
 
-      <!-- Filters -->
-      <div class="p-4 surface-ground rounded mb-4">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label class="block text-sm font-medium mb-2">Recherche</label>
-            <input pInputText 
-                   [(ngModel)]="searchTerm"
-                   (ngModelChange)="onFilterChange()"
-                   placeholder="Nom produit, SKU..." 
-                   class="w-full" />
-          </div>
-          
-          <div>
-            <label class="block text-sm font-medium mb-2">Statut</label>
-            <p-select [options]="statusOptions" 
-                       [(ngModel)]="selectedStockStatus"
-                       (onChange)="onFilterChange()"
-                       placeholder="Tous les statuts"
-                       [showClear]="true"
-                       class="w-full">
-            </p-select>
-          </div>
-          
-          <div>
-            <label class="block text-sm font-medium mb-2">Alerte</label>
-            <p-select [options]="alertOptions" 
-                       [(ngModel)]="selectedAlertType"
-                       (onChange)="onFilterChange()"
-                       placeholder="Toutes les alertes"
-                       [showClear]="true"
-                       class="w-full">
-            </p-select>
-          </div>
-          
-          <div class="flex items-end">
-            <button pButton 
-                    icon="pi pi-filter-slash" 
-                    label="Réinitialiser" 
-                    class="p-button-outlined w-full"
-                    (click)="resetFilters()">
-            </button>
-          </div>
+  <!-- Statistics with Skeletons -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    @if (loading()) {
+      @for (i of [1,2,3,4]; track i) {
+        <app-card-skeleton />
+      }
+    } @else {
+      <div class="surface-card p-4 shadow-2 rounded">
+        <div class="text-500 font-medium">Articles Total</div>
+        <div class="text-900 text-3xl font-bold">{{ total() }}</div>
+      </div>
+      
+      <div class="surface-card p-4 shadow-2 rounded">
+        <div class="text-500 font-medium">Valeur Totale</div>
+        <div class="text-900 text-3xl font-bold">
+          {{ totalValue() | xaf }}
         </div>
       </div>
+      
+      <div class="surface-card p-4 shadow-2 rounded">
+        <div class="text-500 font-medium">Stock Faible</div>
+        <div class="text-900 text-3xl font-bold text-orange-500">{{ lowStockItems().length }}</div>
+      </div>
+      
+      <div class="surface-card p-4 shadow-2 rounded">
+        <div class="text-500 font-medium">Rupture</div>
+        <div class="text-900 text-3xl font-bold text-red-500">{{ outOfStockItems().length }}</div>
+      </div>
+    }
+  </div>
 
-      <!-- Alerts -->
-      @if (lowStockItems().length > 0 || outOfStockItems().length > 0) {
-        <div class="mb-6 space-y-3">
-          @if (lowStockItems().length > 0) {
-            <div class="p-4 bg-orange-50 dark:bg-orange-900/20 border-l-4 border-orange-500 rounded">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center">
-                  <i class="pi pi-exclamation-triangle text-orange-500 text-xl mr-3"></i>
-                  <div>
-                    <h3 class="font-semibold">{{ lowStockItems().length }} produits en stock faible</h3>
-                    <p class="text-sm text-gray-600">Certains produits approchent du niveau de réapprovisionnement</p>
-                  </div>
-                </div>
-                <button pButton 
-                        label="Voir" 
-                        class="p-button-outlined"
-                        (click)="showLowStock = true">
-                </button>
+  <!-- Alerts -->
+  @if (lowStockItems().length > 0 || outOfStockItems().length > 0 || overStockItems().length > 0) {
+    <div class="mb-6 space-y-3">
+      @if (lowStockItems().length > 0) {
+        <div class="p-4 bg-orange-50 dark:bg-orange-900/20 border-l-4 border-orange-500 rounded">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center">
+              <i class="pi pi-exclamation-triangle text-orange-500 text-xl mr-3"></i>
+              <div>
+                <h3 class="font-semibold">{{ lowStockItems().length }} produits en stock faible</h3>
+                <p class="text-sm text-gray-600">Certains produits approchent du niveau de réapprovisionnement</p>
               </div>
             </div>
-          }
-          
-          @if (outOfStockItems().length > 0) {
-            <div class="p-4 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center">
-                  <i class="pi pi-times-circle text-red-500 text-xl mr-3"></i>
-                  <div>
-                    <h3 class="font-semibold">{{ outOfStockItems().length }} produits en rupture de stock</h3>
-                    <p class="text-sm text-gray-600">Action requise immédiatement</p>
-                  </div>
-                </div>
-                <button pButton 
-                        label="Voir" 
-                        class="p-button-outlined"
-                        (click)="showOutOfStock = true">
-                </button>
+            <button pButton 
+                    label="Voir" 
+                    class="p-button-outlined"
+                    (click)="showLowStock = true">
+            </button>
+          </div>
+        </div>
+      }
+      
+      @if (outOfStockItems().length > 0) {
+        <div class="p-4 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center">
+              <i class="pi pi-times-circle text-red-500 text-xl mr-3"></i>
+              <div>
+                <h3 class="font-semibold">{{ outOfStockItems().length }} produits en rupture de stock</h3>
+                <p class="text-sm text-gray-600">Action requise immédiatement</p>
               </div>
             </div>
-          }
+            <button pButton 
+                    label="Voir" 
+                    class="p-button-outlined"
+                    (click)="showOutOfStock = true">
+            </button>
+          </div>
         </div>
       }
 
-      <!-- Statistics -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div class="surface-card p-4 shadow-2 rounded">
-          <div class="text-500 font-medium">Articles Total</div>
-          <div class="text-900 text-3xl font-bold">{{ total() }}</div>
-        </div>
-        
-        <div class="surface-card p-4 shadow-2 rounded">
-          <div class="text-500 font-medium">Valeur Totale</div>
-          <div class="text-900 text-3xl font-bold">
-            {{ totalValue() | xaf }}
+      @if (overStockItems().length > 0) {
+        <div class="p-4 bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 rounded">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center">
+              <i class="pi pi-exclamation-circle text-blue-500 text-xl mr-3"></i>
+              <div>
+                <h3 class="font-semibold">{{ overStockItems().length }} produits en excédent</h3>
+                <p class="text-sm text-gray-600">Stock supérieur au niveau maximum recommandé</p>
+              </div>
+            </div>
+            <button pButton 
+                    label="Voir" 
+                    class="p-button-outlined"
+                    (click)="showOverStock = true">
+            </button>
           </div>
         </div>
-        
-        <div class="surface-card p-4 shadow-2 rounded">
-          <div class="text-500 font-medium">Stock Faible</div>
-          <div class="text-900 text-3xl font-bold text-orange-500">{{ lowStockItems().length }}</div>
-        </div>
-        
-        <div class="surface-card p-4 shadow-2 rounded">
-          <div class="text-500 font-medium">Rupture</div>
-          <div class="text-900 text-3xl font-bold text-red-500">{{ outOfStockItems().length }}</div>
-        </div>
-      </div>
+      }
+    </div>
+  }
 
-      <!-- Inventory Table -->
+  <!-- Main Content -->
+  <div class="surface-card p-4 shadow-2 rounded">
+    <!-- Table with Skeleton -->
+    @if (loading()) {
+      <app-table-skeleton 
+        [rows]="pageSize()"
+        [columns]="tableSkeletonColumns">
+      </app-table-skeleton>
+    } @else {
       <p-table [value]="inventoryItems()" 
                [lazy]="true" 
                [paginator]="true" 
@@ -157,10 +194,15 @@
                [loading]="loading()"
                (onLazyLoad)="onLazyLoad($event)"
                [rowsPerPageOptions]="[10, 25, 50]"
+               selectionMode="multiple"
+               [(selection)]="selectedItems"
                [tableStyle]="{'min-width': '75rem'}">
         
         <ng-template pTemplate="header">
           <tr>
+            <th style="width: 3rem">
+              <p-tableHeaderCheckbox />
+            </th>
             <th>Produit</th>
             <th>SKU</th>
             <th>Magasin</th>
@@ -173,11 +215,14 @@
         </ng-template>
         
         <ng-template pTemplate="body" let-item>
-          <tr>
+          <tr [pSelectableRow]="item">
+            <td>
+              <p-tableCheckbox [value]="item" />
+            </td>
             <td>
               <div class="flex items-center">
                 @if (item.product?.productImageUrl) {
-                  <img [src]="item.productImageUrl" 
+                  <img [src]="item.product?.productImageUrl" 
                        [alt]="item.productName"
                        class="w-10 h-10 rounded-lg object-cover mr-3" />
                 } @else {
@@ -187,7 +232,7 @@
                 }
                 <div>
                   <div class="font-semibold">{{ item.productName }}</div>
-                  <!-- <div class="text-sm text-gray-500">{{ item.product.category?.name || 'N/A' }}</div> -->
+                  <div class="text-sm text-gray-500">{{ item.product?.category?.name || 'N/A' }}</div>
                 </div>
               </div>
             </td>
@@ -207,48 +252,65 @@
               </div>
             </td>
             <td>
-              <p-tag [value]="getStatusLabel(item.stockStatus)" 
-                     [severity]="getStatusSeverity(item.stockStatus)" />
-              @if (item.lowStock) {
-                <p-tag value="Faible" severity="warn" class="ml-1" />
-              }
-              @if (item.outOfStock) {
-                <p-tag value="Rupture" severity="danger" class="ml-1" />
-              }
-              @if (item.overStock) {
-                <p-tag value="Excédent" severity="info" class="ml-1" />
-              }
+              <div class="flex flex-col gap-1">
+                <p-tag [value]="getStatusLabel(item.stockStatus)" 
+                       [severity]="getStatusSeverity(item.stockStatus)" />
+                @if (item.lowStock) {
+                  <p-tag value="Faible" severity="warn" />
+                }
+                @if (item.outOfStock) {
+                  <p-tag value="Rupture" severity="danger" />
+                }
+                @if (item.overStock) {
+                  <p-tag value="Excédent" severity="info" />
+                }
+              </div>
             </td>
             <td class="font-semibold">{{ item.sellingPrice | xaf }}</td>
             <td class="font-semibold">{{ item.totalValue | xaf }}</td>
             <td>
-              <div class="flex gap-2">
+              <div class="flex gap-1">
                 <button pButton 
                         icon="pi pi-eye" 
                         class="p-button-rounded p-button-info p-button-text"
-                        [routerLink]="['/inventory', item.inventoryId]">
+                        [routerLink]="['/inventory', item.inventoryId]"
+                        pTooltip="Voir détails">
                 </button>
                 
                 @if (canManageInventory()) {
                   <button pButton 
                           icon="pi pi-plus" 
                           class="p-button-rounded p-button-success p-button-text"
-                          (click)="restockItem(item)"
-                          [disabled]="loading()">
+                          (click)="quickRestock(item)"
+                          pTooltip="Réapprovisionner">
                   </button>
                   
                   <button pButton 
                           icon="pi pi-pencil" 
                           class="p-button-rounded p-button-warning p-button-text"
                           (click)="editItem(item)"
-                          [disabled]="loading()">
+                          pTooltip="Modifier">
                   </button>
                   
                   <button pButton 
                           icon="pi pi-truck" 
                           class="p-button-rounded p-button-help p-button-text"
                           (click)="transferItem(item)"
-                          [disabled]="loading()">
+                          pTooltip="Transférer">
+                  </button>
+                  
+                  <button pButton 
+                          icon="pi pi-history" 
+                          class="p-button-rounded p-button-text"
+                          (click)="viewHistory(item)"
+                          pTooltip="Historique">
+                  </button>
+                  
+                  <button pButton 
+                          icon="pi pi-trash" 
+                          class="p-button-rounded p-button-danger p-button-text"
+                          (click)="deleteItem(item)"
+                          pTooltip="Supprimer">
                   </button>
                 }
               </div>
@@ -258,34 +320,405 @@
         
         <ng-template pTemplate="emptymessage">
           <tr>
-            <td colspan="8" class="text-center p-6">
-              <div class="text-500">
-                @if (loading()) {
-                  <p class="text-lg">Chargement en cours...</p>
-                } @else {
-                  <p class="text-lg">Aucun article d'inventaire trouvé</p>
-                }
+            <td colspan="9" class="text-center p-6">
+              <div class="flex flex-col items-center text-gray-500">
+                <i class="pi pi-box text-5xl mb-4"></i>
+                <p class="text-lg mb-2">Aucun article d'inventaire trouvé</p>
+                <p>Essayez de modifier vos filtres ou d'ajouter un nouvel article</p>
               </div>
             </td>
           </tr>
         </ng-template>
       </p-table>
+    }
+  </div>
 
-      <!-- Low Stock Dialog -->
-      <p-dialog header="Produits en stock faible" 
-                [(visible)]="showLowStock" 
-                [modal]="true" 
-                [style]="{ width: '800px' }">
+  <!-- Drawers and Dialogs -->
+
+
+
+  <!-- Filters Drawer -->
+  <p-drawer [(visible)]="showFiltersDrawer" position="left" styleClass="w-96">
+    <ng-template pTemplate="header">
+      <h2 class="text-xl font-bold">Filtres avancés</h2>
+    </ng-template>
+    
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium mb-2">Recherche</label>
+        <input pInputText 
+               [(ngModel)]="searchTerm"
+               placeholder="Nom produit, SKU..." 
+               class="w-full" />
+      </div>
+      
+      <div>
+        <label class="block text-sm font-medium mb-2">Magasin</label>
+        <p-select [options]="stores()" 
+                  [(ngModel)]="selectedStore"
+                  placeholder="Tous les magasins"
+                  [showClear]="true"
+                  optionLabel="label"
+                  optionValue="value"
+                  class="w-full">
+        </p-select>
+      </div>
+      
+      <div>
+        <label class="block text-sm font-medium mb-2">Statut</label>
+        <p-select [options]="statusOptions" 
+                  [(ngModel)]="selectedStockStatus"
+                  placeholder="Tous les statuts"
+                  [showClear]="true"
+                  optionLabel="label"
+                  optionValue="value"
+                  class="w-full">
+        </p-select>
+      </div>
+      
+      <div>
+        <label class="block text-sm font-medium mb-2">Alerte</label>
+        <p-select [options]="alertOptions" 
+                  [(ngModel)]="selectedAlertType"
+                  placeholder="Toutes les alertes"
+                  [showClear]="true"
+                  optionLabel="label"
+                  optionValue="value"
+                  class="w-full">
+        </p-select>
+      </div>
+      
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium mb-2">Quantité min</label>
+          <p-inputNumber [(ngModel)]="minQuantity"
+                         [min]="0"
+                         placeholder="0"
+                         class="w-full">
+          </p-inputNumber>
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium mb-2">Quantité max</label>
+          <p-inputNumber [(ngModel)]="maxQuantity"
+                         [min]="0"
+                         placeholder="0"
+                         class="w-full">
+          </p-inputNumber>
+        </div>
+      </div>
+      
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium mb-2">Valeur min</label>
+          <p-inputNumber [(ngModel)]="minValue"
+                         [min]="0"
+                         [maxFractionDigits]="2"
+                         placeholder="0.00"
+                         class="w-full">
+          </p-inputNumber>
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium mb-2">Valeur max</label>
+          <p-inputNumber [(ngModel)]="maxValue"
+                         [min]="0"
+                         [maxFractionDigits]="2"
+                         placeholder="0.00"
+                         class="w-full">
+          </p-inputNumber>
+        </div>
+      </div>
+    </div>
+    
+    <ng-template pTemplate="footer">
+      <div class="flex gap-2">
+        <button pButton 
+                label="Appliquer" 
+                class="p-button-primary flex-1"
+                (click)="onFilterChange(); showFiltersDrawer = false">
+        </button>
+        
+        <button pButton 
+                label="Réinitialiser" 
+                class="p-button-outlined flex-1"
+                (click)="resetFilters(); showFiltersDrawer = false">
+        </button>
+      </div>
+    </ng-template>
+  </p-drawer>
+
+  <!-- Bulk Operations Drawer -->
+  <p-drawer [(visible)]="showBulkOperationsDrawer" position="right" styleClass="w-96">
+    <ng-template pTemplate="header">
+      <h2 class="text-xl font-bold">Opérations en masse</h2>
+      <p class="text-sm text-gray-500">{{ selectedItems().length }} article(s) sélectionné(s)</p>
+    </ng-template>
+    
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium mb-2">Opération</label>
+        <p-select [options]="bulkOptions" 
+                  [(ngModel)]="bulkOperation"
+                  optionLabel="label"
+                  optionValue="value"
+                  class="w-full">
+        </p-select>
+      </div>
+      
+      @if (bulkOperation() === 'restock') {
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-2">Quantité</label>
+            <p-inputNumber [(ngModel)]="bulkRestockQuantity"
+                           [min]="1"
+                           class="w-full">
+            </p-inputNumber>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-2">Coût unitaire</label>
+            <p-inputNumber [(ngModel)]="bulkRestockUnitCost"
+                           [min]="0"
+                           [maxFractionDigits]="2"
+                           class="w-full">
+            </p-inputNumber>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-2">Notes</label>
+            <textarea pInputTextarea 
+                      [(ngModel)]="bulkRestockNotes"
+                      rows="3"
+                      class="w-full">
+            </textarea>
+          </div>
+        </div>
+      }
+      
+      @if (bulkOperation() === 'transfer') {
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-2">Magasin cible</label>
+            <p-select [options]="stores()" 
+                      [(ngModel)]="bulkTransferStore"
+                      placeholder="Sélectionner un magasin"
+                      optionLabel="label"
+                      optionValue="value"
+                      class="w-full">
+            </p-select>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-2">Notes</label>
+            <textarea pInputTextarea 
+                      [(ngModel)]="bulkTransferNotes"
+                      rows="3"
+                      class="w-full">
+            </textarea>
+          </div>
+        </div>
+      }
+      
+      @if (bulkLoading()) {
+        <div class="flex items-center justify-center p-4">
+          <p-progressSpinner />
+        </div>
+      }
+    </div>
+    
+    <ng-template pTemplate="footer">
+      <div class="flex gap-2">
+        <button pButton 
+                label="Annuler" 
+                class="p-button-outlined flex-1"
+                (click)="showBulkOperationsDrawer = false"
+                [disabled]="bulkLoading()">
+        </button>
+        
+        <button pButton 
+                label="Exécuter" 
+                class="p-button-primary flex-1"
+                (click)="executeBulkOperation()"
+                [disabled]="bulkLoading() || 
+                          (bulkOperation() === 'transfer' && !bulkTransferStore())">
+        </button>
+      </div>
+    </ng-template>
+  </p-drawer>
+
+  <!-- Statistics Drawer -->
+  <p-drawer [(visible)]="showStatisticsDrawer" position="right" styleClass="w-96">
+    <ng-template pTemplate="header">
+      <h2 class="text-xl font-bold">Statistiques de l'inventaire</h2>
+    </ng-template>
+    
+    @if (statisticsLoading) {
+      <div class="space-y-4">
+        <app-card-skeleton />
+        <app-chart-skeleton />
+      </div>
+    } @else if (statistics) {
+      <div class="space-y-6">
+        <div class="grid grid-cols-2 gap-4">
+          <div class="surface-card p-3 rounded">
+            <div class="text-500 text-sm">Valeur totale</div>
+            <div class="text-900 text-xl font-bold">{{ statistics.totalValue | xaf }}</div>
+          </div>
+          
+          <div class="surface-card p-3 rounded">
+            <div class="text-500 text-sm">Articles total</div>
+            <div class="text-900 text-xl font-bold">{{ statistics.totalItems }}</div>
+          </div>
+          
+          <div class="surface-card p-3 rounded">
+            <div class="text-500 text-sm">En stock</div>
+            <div class="text-900 text-xl font-bold text-green-500">{{ statistics.inStockCount }}</div>
+          </div>
+          
+          <div class="surface-card p-3 rounded">
+            <div class="text-500 text-sm">Stock faible</div>
+            <div class="text-900 text-xl font-bold text-orange-500">{{ statistics.lowStockCount }}</div>
+          </div>
+          
+          <div class="surface-card p-3 rounded">
+            <div class="text-500 text-sm">Rupture</div>
+            <div class="text-900 text-xl font-bold text-red-500">{{ statistics.outOfStockCount }}</div>
+          </div>
+          
+          <div class="surface-card p-3 rounded">
+            <div class="text-500 text-sm">Excédent</div>
+            <div class="text-900 text-xl font-bold text-blue-500">{{ statistics.overStockCount }}</div>
+          </div>
+        </div>
+        
+        @if (chartData) {
+          <div>
+            <h3 class="font-medium mb-2">Répartition des statuts</h3>
+            <p-chart type="pie" [data]="chartData" [options]="chartOptions" [style]="{'height': '300px'}">
+            </p-chart>
+          </div>
+        }
+        
+        <div>
+          <h3 class="font-medium mb-2">Top 5 des articles par valeur</h3>
+          <div class="space-y-2">
+            @for (item of statistics.topItemsByValue || []; track $index) {
+              <div class="flex items-center justify-between p-2 border rounded">
+                <span>{{ item.productName }}</span>
+                <span class="font-semibold">{{ item.totalValue | xaf }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    }
+    
+    <ng-template pTemplate="footer">
+      <button pButton 
+              label="Fermer" 
+              class="p-button-outlined w-full"
+              (click)="showStatisticsDrawer = false">
+      </button>
+    </ng-template>
+  </p-drawer>
+
+  <!-- Import Dialog -->
+  <p-dialog header="Importer l'inventaire" 
+            [(visible)]="showImportDialog" 
+            [modal]="true" 
+            [style]="{ width: '500px' }"
+            [closable]="!importInProgress">
+    <div class="space-y-4">
+      <p>Importez vos articles d'inventaire depuis un fichier CSV ou Excel</p>
+      
+      <div>
+        <label class="block text-sm font-medium mb-2">Fichier</label>
+        <p-fileUpload mode="basic" 
+                      chooseLabel="Choisir un fichier"
+                      accept=".csv,.xlsx,.xls"
+                      [maxFileSize]="1000000"
+                      (onSelect)="onImportFileSelect($event)">
+        </p-fileUpload>
+        
+        @if (importFile) {
+          <div class="mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded">
+            <div class="flex items-center justify-between">
+              <span>{{ importFile.name }}</span>
+              <span>{{ importFile.size | fileSize }}</span>
+            </div>
+          </div>
+        }
+      </div>
+      
+      <div class="text-sm text-gray-500">
+        <p class="font-medium mb-1">Format attendu :</p>
+        <ul class="list-disc pl-5 space-y-1">
+          <li>ID Produit</li>
+          <li>ID Magasin</li>
+          <li>Quantité</li>
+          <li>Stock minimum</li>
+          <li>Stock maximum</li>
+        </ul>
+      </div>
+      
+      @if (importInProgress) {
+        <div class="flex items-center justify-center p-4">
+          <p-progressSpinner />
+        </div>
+      }
+    </div>
+    
+    <ng-template pTemplate="footer">
+      <button pButton 
+              label="Annuler" 
+              class="p-button-outlined"
+              (click)="showImportDialog = false"
+              [disabled]="importInProgress">
+      </button>
+      
+      <button pButton 
+              label="Importer" 
+              class="p-button-primary"
+              (click)="importInventory()"
+              [disabled]="!importFile || importInProgress">
+      </button>
+    </ng-template>
+  </p-dialog>
+
+  <!-- Predictions Dialog -->
+  <p-dialog header="Prédictions de stock faible" 
+            [(visible)]="showPredictionsDialog" 
+            [modal]="true" 
+            [style]="{ width: '800px' }"
+            [closable]="!predictionsLoading">
+    <div class="space-y-4">
+      <div class="flex items-center justify-between">
+        <label class="block text-sm font-medium">Période de prédiction (jours)</label>
+        <p-inputNumber [(ngModel)]="predictionDays"
+                       [min]="7"
+                       [max]="90"
+                       [showButtons]="true">
+        </p-inputNumber>
+      </div>
+      
+      @if (predictionsLoading) {
+        <div class="flex items-center justify-center p-8">
+          <p-progressSpinner />
+        </div>
+      } @else if (predictions.length > 0) {
         <div class="space-y-3">
-          @for (item of lowStockItems(); track item.inventoryId) {
+          @for (prediction of predictions; track $index) {
             <div class="p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
               <div class="flex items-center justify-between">
                 <div class="flex items-center">
                   <i class="pi pi-exclamation-triangle text-orange-500 text-xl mr-3"></i>
                   <div>
-                    <div class="font-semibold">{{ item.productName }}</div>
+                    <div class="font-semibold">{{ prediction.productName }}</div>
                     <div class="text-sm text-gray-500">
-                      {{ item.store.name }} • Stock actuel: {{ item.quantity }} • Point de réapprovisionnement: {{ item.reorderPoint }}
+                      {{ prediction.storeName }} • 
+                      Stock actuel: {{ prediction.currentStock }} • 
+                      Prédiction: risque de rupture dans {{ prediction.daysUntilOut }} jours
                     </div>
                   </div>
                 </div>
@@ -294,68 +727,172 @@
                           icon="pi pi-plus" 
                           label="Réapprovisionner" 
                           class="p-button-outlined"
-                          (click)="restockItem(item)">
+                          (click)="quickRestock(prediction)">
                   </button>
                   <button pButton 
                           icon="pi pi-eye" 
                           class="p-button-text"
-                          [routerLink]="['/inventory', item.inventoryId]">
+                          [routerLink]="['/inventory', prediction.inventoryId]">
                   </button>
                 </div>
               </div>
             </div>
           }
         </div>
-        <ng-template pTemplate="footer">
-          <button pButton 
-                  label="Fermer" 
-                  class="p-button-outlined"
-                  (click)="showLowStock = false">
-          </button>
-        </ng-template>
-      </p-dialog>
-
-      <!-- Out of Stock Dialog -->
-      <p-dialog header="Produits en rupture de stock" 
-                [(visible)]="showOutOfStock" 
-                [modal]="true" 
-                [style]="{ width: '800px' }">
-        <div class="space-y-3">
-          @for (item of outOfStockItems(); track item.inventoryId) {
-            <div class="p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center">
-                  <i class="pi pi-times-circle text-red-500 text-xl mr-3"></i>
-                  <div>
-                    <div class="font-semibold">{{ item.productName }}</div>
-                    <div class="text-sm text-gray-500">
-                      {{ item.store.name }} • Dernière date de réapprovisionnement: {{ item.lastRestocked | date:'dd/MM/yyyy' }}
-                    </div>
-                  </div>
-                </div>
-                <div class="flex gap-2">
-                  <button pButton 
-                          icon="pi pi-plus" 
-                          label="Réapprovisionner urgemment" 
-                          class="p-button-danger"
-                          (click)="restockItem(item)">
-                  </button>
-                  <button pButton 
-                          icon="pi pi-eye" 
-                          class="p-button-text"
-                          [routerLink]="['/inventory', item.inventoryId]">
-                  </button>
-                </div>
-              </div>
-            </div>
-          }
+      } @else {
+        <div class="text-center p-8 text-gray-500">
+          <i class="pi pi-check-circle text-5xl mb-4"></i>
+          <p class="text-lg">Aucun risque de rupture prévu pour les {{ predictionDays() }} prochains jours</p>
         </div>
-        <ng-template pTemplate="footer">
-          <button pButton 
-                  label="Fermer" 
-                  class="p-button-outlined"
-                  (click)="showOutOfStock = false">
-          </button>
-        </ng-template>
-      </p-dialog>
+      }
     </div>
+    
+    <ng-template pTemplate="footer">
+      <button pButton 
+              label="Fermer" 
+              class="p-button-outlined"
+              (click)="showPredictionsDialog = false">
+      </button>
+      
+      @if (!predictionsLoading) {
+        <button pButton 
+                label="Actualiser" 
+                class="p-button-primary"
+                (click)="loadPredictions()">
+        </button>
+      }
+    </ng-template>
+  </p-dialog>
+
+  <!-- Low Stock Dialog -->
+  <p-dialog header="Produits en stock faible" 
+            [(visible)]="showLowStock" 
+            [modal]="true" 
+            [style]="{ width: '800px' }">
+    <div class="space-y-3">
+      @for (item of lowStockItems(); track item.inventoryId) {
+        <div class="p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center">
+              <i class="pi pi-exclamation-triangle text-orange-500 text-xl mr-3"></i>
+              <div>
+                <div class="font-semibold">{{ item.productName }}</div>
+                <div class="text-sm text-gray-500">
+                  {{ item.storeName }} • Stock actuel: {{ item.quantity }} • Point de réapprovisionnement: {{ item.reorderPoint }}
+                </div>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button pButton 
+                      icon="pi pi-plus" 
+                      label="Réapprovisionner" 
+                      class="p-button-outlined"
+                      (click)="quickRestock(item)">
+              </button>
+              <button pButton 
+                      icon="pi pi-eye" 
+                      class="p-button-text"
+                      [routerLink]="['/inventory', item.inventoryId]">
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+    <ng-template pTemplate="footer">
+      <button pButton 
+              label="Fermer" 
+              class="p-button-outlined"
+              (click)="showLowStock = false">
+      </button>
+    </ng-template>
+  </p-dialog>
+
+  <!-- Out of Stock Dialog -->
+  <p-dialog header="Produits en rupture de stock" 
+            [(visible)]="showOutOfStock" 
+            [modal]="true" 
+            [style]="{ width: '800px' }">
+    <div class="space-y-3">
+      @for (item of outOfStockItems(); track item.inventoryId) {
+        <div class="p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center">
+              <i class="pi pi-times-circle text-red-500 text-xl mr-3"></i>
+              <div>
+                <div class="font-semibold">{{ item.productName }}</div>
+                <div class="text-sm text-gray-500">
+                  {{ item.storeName }} • Dernière date de réapprovisionnement: {{ item.lastRestocked | date:'dd/MM/yyyy' }}
+                </div>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button pButton 
+                      icon="pi pi-plus" 
+                      label="Réapprovisionner urgemment" 
+                      class="p-button-danger"
+                      (click)="quickRestock(item)">
+              </button>
+              <button pButton 
+                      icon="pi pi-eye" 
+                      class="p-button-text"
+                      [routerLink]="['/inventory', item.inventoryId]">
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+    <ng-template pTemplate="footer">
+      <button pButton 
+              label="Fermer" 
+              class="p-button-outlined"
+              (click)="showOutOfStock = false">
+      </button>
+    </ng-template>
+  </p-dialog>
+
+  <!-- Over Stock Dialog -->
+  <p-dialog header="Produits en excédent" 
+            [(visible)]="showOverStock" 
+            [modal]="true" 
+            [style]="{ width: '800px' }">
+    <div class="space-y-3">
+      @for (item of overStockItems(); track item.inventoryId) {
+        <div class="p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center">
+              <i class="pi pi-exclamation-circle text-blue-500 text-xl mr-3"></i>
+              <div>
+                <div class="font-semibold">{{ item.productName }}</div>
+                <div class="text-sm text-gray-500">
+                  {{ item.storeName }} • Stock actuel: {{ item.quantity }} • Stock maximum: {{ item.maxStock }}
+                </div>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button pButton 
+                      icon="pi pi-truck" 
+                      label="Transférer" 
+                      class="p-button-outlined"
+                      (click)="transferItem(item)">
+              </button>
+              <button pButton 
+                      icon="pi pi-eye" 
+                      class="p-button-text"
+                      [routerLink]="['/inventory', item.inventoryId]">
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+    <ng-template pTemplate="footer">
+      <button pButton 
+              label="Fermer" 
+              class="p-button-outlined"
+              (click)="showOverStock = false">
+      </button>
+    </ng-template>
+  </p-dialog>
+</div>

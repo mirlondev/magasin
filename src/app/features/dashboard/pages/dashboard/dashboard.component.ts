@@ -1,3 +1,4 @@
+// dashboard.component.ts
 import { CommonModule } from "@angular/common";
 import { Component, OnInit, computed, inject, signal } from "@angular/core";
 import { RouterLink } from "@angular/router";
@@ -8,9 +9,12 @@ import { ChartModule } from "primeng/chart";
 import { ProgressBarModule } from "primeng/progressbar";
 import { TableModule } from "primeng/table";
 import { TagModule } from "primeng/tag";
+import { SkeletonModule } from "primeng/skeleton";
 import { EmployeeRole } from "../../../../core/models";
 import { AuthService } from "../../../../core/services/auth.service";
 import { DashboardService } from "../../../../core/services/dashboard.service";
+import { PosPermissionService } from "../../../../core/services/pos-permission.service";
+import { ShiftReportsService } from "../../../../core/services/shift-reports.service";
 
 @Component({
   selector: 'app-dashboard',
@@ -24,10 +28,22 @@ import { DashboardService } from "../../../../core/services/dashboard.service";
     TableModule,
     TagModule,
     BadgeModule,
-    ProgressBarModule
+    ProgressBarModule,
+    SkeletonModule
   ],
   template: `
     <div class="p-4">
+      <!-- Loading State -->
+      @if (loading()) {
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          @for (i of [1,2,3,4]; track i) {
+            <p-card>
+              <p-skeleton width="100%" height="120px" />
+            </p-card>
+          }
+        </div>
+      }
+
       <!-- Dashboard Header -->
       <div class="mb-8">
         <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
@@ -46,17 +62,17 @@ import { DashboardService } from "../../../../core/services/dashboard.service";
             <div>
               <div class="text-500 font-medium">Ventes totales</div>
               <div class="text-900 text-3xl font-bold">{{ stats().totalSales | currency:'EUR':'symbol':'1.2-2' }}</div>
-              <div class="text-500 text-sm mt-1">Aujourd'hui</div>
+              <div class="text-500 text-sm mt-1">Période en cours</div>
             </div>
             <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
               <i class="pi pi-euro text-2xl text-blue-600 dark:text-blue-300"></i>
             </div>
           </div>
           <div class="mt-4">
-            <div class="flex items-center text-sm">
-              <i class="pi pi-arrow-up text-green-500 mr-2"></i>
-              <span class="text-green-500 font-semibold">{{ stats().salesGrowth }}%</span>
-              <span class="text-500 ml-2">vs hier</span>
+            <div class="flex items-center text-sm" [class.text-green-500]="stats().salesGrowth >= 0" [class.text-red-500]="stats().salesGrowth < 0">
+              <i class="pi mr-2" [class.pi-arrow-up]="stats().salesGrowth >= 0" [class.pi-arrow-down]="stats().salesGrowth < 0"></i>
+              <span class="font-semibold">{{ abs(stats().salesGrowth) | number:'1.1-1' }}%</span>
+              <span class="text-500 ml-2">vs période précédente</span>
             </div>
           </div>
         </p-card>
@@ -67,17 +83,17 @@ import { DashboardService } from "../../../../core/services/dashboard.service";
             <div>
               <div class="text-500 font-medium">Commandes</div>
               <div class="text-900 text-3xl font-bold">{{ stats().totalOrders }}</div>
-              <div class="text-500 text-sm mt-1">Aujourd'hui</div>
+              <div class="text-500 text-sm mt-1">Période en cours</div>
             </div>
             <div class="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
               <i class="pi pi-shopping-cart text-2xl text-green-600 dark:text-green-300"></i>
             </div>
           </div>
           <div class="mt-4">
-            <div class="flex items-center text-sm">
-              <i class="pi pi-arrow-up text-green-500 mr-2"></i>
-              <span class="text-green-500 font-semibold">{{ stats().orderGrowth }}%</span>
-              <span class="text-500 ml-2">vs hier</span>
+            <div class="flex items-center text-sm" [class.text-green-500]="stats().orderGrowth >= 0" [class.text-red-500]="stats().orderGrowth < 0">
+              <i class="pi mr-2" [class.pi-arrow-up]="stats().orderGrowth >= 0" [class.pi-arrow-down]="stats().orderGrowth < 0"></i>
+              <span class="font-semibold">{{ abs(stats().orderGrowth) | number:'1.1-1' }}%</span>
+              <span class="text-500 ml-2">vs période précédente</span>
             </div>
           </div>
         </p-card>
@@ -86,9 +102,9 @@ import { DashboardService } from "../../../../core/services/dashboard.service";
         <p-card class="shadow-lg">
           <div class="flex items-center justify-between">
             <div>
-              <div class="text-500 font-medium">Produits en rupture</div>
+              <div class="text-500 font-medium">Alertes stock</div>
               <div class="text-900 text-3xl font-bold">{{ stats().lowStockCount }}</div>
-              <div class="text-500 text-sm mt-1">Attention requise</div>
+              <div class="text-500 text-sm mt-1">Produits concernés</div>
             </div>
             <div class="w-12 h-12 bg-orange-100 dark:bg-orange-900 rounded-full flex items-center justify-center">
               <i class="pi pi-exclamation-triangle text-2xl text-orange-600 dark:text-orange-300"></i>
@@ -109,7 +125,7 @@ import { DashboardService } from "../../../../core/services/dashboard.service";
             <div>
               <div class="text-500 font-medium">Caisses ouvertes</div>
               <div class="text-900 text-3xl font-bold">{{ stats().openShifts }}</div>
-              <div class="text-500 text-sm mt-1">En cours</div>
+              <div class="text-500 text-sm mt-1">Actuellement</div>
             </div>
             <div class="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center">
               <i class="pi pi-clock text-2xl text-purple-600 dark:text-purple-300"></i>
@@ -129,8 +145,14 @@ import { DashboardService } from "../../../../core/services/dashboard.service";
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <!-- Sales Chart -->
         <div>
-          <p-card header="Ventes des 7 derniers jours" class="shadow-lg">
-            <p-chart type="line" [data]="salesChartData()" [options]="chartOptions" height="300px" />
+          <p-card header="Évolution des ventes" class="shadow-lg">
+            @if (salesChartData()) {
+              <p-chart type="line" [data]="salesChartData()" [options]="chartOptions" height="300px" />
+            } @else {
+              <div class="flex items-center justify-center h-[300px] text-gray-500">
+                Aucune donnée disponible
+              </div>
+            }
           </p-card>
         </div>
 
@@ -156,7 +178,7 @@ import { DashboardService } from "../../../../core/services/dashboard.service";
                           {{ order.orderNumber }}
                         </a>
                       </td>
-                      <td class="py-3">{{ order.customerName|| 'N/A' }}</td>
+                      <td class="py-3">{{ order.customerName || 'N/A' }}</td>
                       <td class="py-3 font-semibold">{{ order.totalAmount | currency:'EUR':'symbol':'1.2-2' }}</td>
                       <td class="py-3">
                         <p-tag [value]="getOrderStatusLabel(order.status)" 
@@ -187,7 +209,7 @@ import { DashboardService } from "../../../../core/services/dashboard.service";
         <!-- Low Stock Products -->
         @if (lowStockProducts().length > 0) {
           <div>
-            <p-card header="Produits en rupture de stock" class="shadow-lg">
+            <p-card header="Produits en alerte de stock" class="shadow-lg">
               <div class="space-y-4">
                 @for (product of lowStockProducts(); track product.productId) {
                   <div class="flex items-center justify-between p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
@@ -207,10 +229,12 @@ import { DashboardService } from "../../../../core/services/dashboard.service";
                       </div>
                     </div>
                     <div class="text-right">
-                      <div class="font-semibold">{{ product.quantity }} unités</div>
-                      <div class="text-sm text-orange-600 dark:text-orange-400">
+                      <div class="font-semibold" [class.text-red-500]="product.quantity === 0" [class.text-orange-600]="product.quantity > 0 && product.quantity <= (product.minStock)">
+                        {{ product.quantity }} unités
+                      </div>
+                      <div class="text-sm" [class.text-red-600]="product.quantity === 0" [class.text-orange-600]="product.quantity > 0">
                         <i class="pi pi-exclamation-triangle mr-1"></i>
-                        Stock faible
+                        {{ product.quantity === 0 ? 'Rupture' : 'Stock faible' }}
                       </div>
                     </div>
                   </div>
@@ -235,8 +259,8 @@ import { DashboardService } from "../../../../core/services/dashboard.service";
                 <button pButton 
                         label="Nouvelle vente" 
                         icon="pi pi-plus" 
-                        class="p-button-success"
-                        [routerLink]="['/orders/new']">
+                        class="p-button-success w-full"
+                        [routerLink]="['/orders/pos-sale/']">
                 </button>
               }
               
@@ -244,7 +268,7 @@ import { DashboardService } from "../../../../core/services/dashboard.service";
                 <button pButton 
                         label="Gérer inventaire" 
                         icon="pi pi-warehouse" 
-                        class="p-button-help"
+                        class="p-button-help w-full"
                         [routerLink]="['/inventory']">
                 </button>
               }
@@ -253,19 +277,29 @@ import { DashboardService } from "../../../../core/services/dashboard.service";
                 <button pButton 
                         label="Ajouter client" 
                         icon="pi pi-user-plus" 
-                        class="p-button-info"
+                        class="p-button-info w-full"
                         [routerLink]="['/customers/new']">
                 </button>
               }
               
               @if (canManageShifts()) {
+                @if (openShift()) {
+                  <button pButton 
+                        label="Fermer caisse" 
+                        icon="pi pi-calculator" 
+                        class="p-button-warning w-full"
+                        [routerLink]="['/shift-reports/close']">
+                  </button>
+                }
+                @else {
                 <button pButton 
                         label="Ouvrir caisse" 
                         icon="pi pi-calculator" 
-                        class="p-button-warning"
+                        class="p-button-warning w-full"
                         [routerLink]="['/shift-reports/new']">
                 </button>
               }
+            }
             </div>
           </p-card>
         </div>
@@ -279,23 +313,24 @@ import { DashboardService } from "../../../../core/services/dashboard.service";
   `]
 })
 export class DashboardComponent implements OnInit {
+
+
   private authService = inject(AuthService);
   private dashboardService = inject(DashboardService);
+  private permissionService = inject(PosPermissionService);
+  private shiftService = inject(ShiftReportsService);
 
   // Data signals
   stats = this.dashboardService.stats;
   recentOrders = this.dashboardService.recentOrders;
   lowStockProducts = this.dashboardService.lowStockProducts;
   salesChartData = this.dashboardService.salesChartData;
+  loading = this.dashboardService.loading;
+  openShift =computed( () => this.shiftService.getCurrentShift().subscribe(shift => shift?.status === 'OPEN'));
 
   // Computed values
   userName = computed(() => this.authService.currentUser()?.username || 'Utilisateur');
   
-  // Permissions
-  canCreateOrder = computed(() => this.authService.hasRole([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER]));
-  canManageInventory = computed(() => this.authService.hasRole([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.DEPOT_MANAGER]));
-  canManageCustomers = computed(() => this.authService.hasRole([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER]));
-  canManageShifts = computed(() => this.authService.hasRole([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER]));
 
   // Chart options
   chartOptions = {
@@ -325,29 +360,46 @@ export class DashboardComponent implements OnInit {
     this.dashboardService.loadDashboardData();
   }
 
-  getOrderStatusLabel(status: string | undefined): string {
-    if (!status) return 'Inconnu';
-    switch (status) {
-      case 'PENDING': return 'En attente';
-      case 'PROCESSING': return 'En traitement';
-      case 'READY': return 'Prête';
-      case 'COMPLETED': return 'Terminée';
-      case 'CANCELLED': return 'Annulée';
-      case 'REFUNDED': return 'Remboursée';
-      default: return status;
-    }
+  abs(value: number): number {
+    return Math.abs(value);
   }
 
-  getOrderStatusSeverity(status: string | undefined): 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast'  {
-    if (!status) return 'info';
-    switch (status) {
-      case 'PENDING': return 'warn';
-      case 'PROCESSING': return 'info';
-      case 'READY': return 'contrast';
-      case 'COMPLETED': return 'success';
-      case 'CANCELLED': return 'danger';
-      case 'REFUNDED': return 'secondary';
-      default: return 'info';
-    }
+  getOrderStatusLabel(status: string | undefined): string {
+    if (!status) return 'Inconnu';
+    const labels: Record<string, string> = {
+      'PENDING': 'En attente',
+      'PROCESSING': 'En traitement',
+      'READY': 'Prête',
+      'COMPLETED': 'Terminée',
+      'CANCELLED': 'Annulée',
+      'REFUNDED': 'Remboursée'
+    };
+    return labels[status] || status;
   }
+
+  getOrderStatusSeverity(status: string | undefined): 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast' {
+    if (!status) return 'info';
+    const severities: Record<string, any> = {
+      'PENDING': 'warn',
+      'PROCESSING': 'info',
+      'READY': 'contrast',
+      'COMPLETED': 'success',
+      'CANCELLED': 'danger',
+      'REFUNDED': 'secondary'
+    };
+    return severities[status] || 'info';
+  }
+    // Permissions
+      canManageShifts() {
+      return this.permissionService.canManageShifts();
+      }
+      canManageCustomers() {
+      return this.permissionService.canManageCustomers();
+      }
+      canManageInventory() {
+      return this.permissionService.canManageInventory();
+      }
+      canCreateOrder() {
+      return this.permissionService.canCreateOrder();
+      }
 }

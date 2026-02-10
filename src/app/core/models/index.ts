@@ -287,12 +287,15 @@ export interface Product {
   sku: string;
   barcode: string;
   price: number;
+  costPrice?: number;
+  taxRate?: number;
   categoryId: string;
   quantity: number;
   imageUrl: string;
   categoryName: string;
   inStock: boolean;
   minStock: number;
+  maxStock?: number;
   isActive: boolean;
   totalStock: number;
   createdAt: string;

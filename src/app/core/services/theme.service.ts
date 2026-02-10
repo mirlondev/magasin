@@ -68,6 +68,19 @@ export class ThemeService {
       });
     }
   }
+    themeOptions = [
+    { label: 'Clair', value: 'light', icon: 'pi pi-sun' },
+    { label: 'Sombre', value: 'dark', icon: 'pi pi-moon' },
+    { label: 'Auto', value: 'auto', icon: 'pi pi-desktop' }
+  ];
+
+  colorSchemeOptions = [
+    { label: 'Bleu', value: 'blue', color: '#3B82F6' },
+    { label: 'Vert', value: 'green', color: '#10B981' },
+    { label: 'Violet', value: 'purple', color: '#8B5CF6' },
+    { label: 'Orange', value: 'orange', color: '#F59E0B' },
+    { label: 'Indigo', value: 'indigo', color: '#6366F1' }
+  ];
 
   setTheme(theme: Theme) {
     this.currentTheme.set(theme);

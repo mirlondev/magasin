@@ -298,11 +298,11 @@ export class ProductsListComponent implements OnInit {
   }
 
   viewProduct(product: any) {
-    this.router.navigate(['/products', product.productId]);
+    this.router.navigate(['/products/', product.productId]);
   }
 
   editProduct(product: any) {
-    this.router.navigate(['/products', product.productId, 'edit']);
+    this.router.navigate(['/products/', product.productId, 'edit']);
   }
 
   cloneProduct(product: any) {
@@ -325,7 +325,7 @@ export class ProductsListComponent implements OnInit {
   }
 
   manageStock(product: any) {
-    this.router.navigate(['/products', product.productId, 'stock']);
+    this.router.navigate(['/products/', product.productId, 'stock']);
   }
 
   // Delete product

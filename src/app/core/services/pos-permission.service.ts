@@ -1,6 +1,6 @@
 import { EmployeeRole, Order, OrderStatus } from "../models";
 import { AuthService } from "./auth.service";
-import { Injectable } from "@angular/core";
+import { computed, Injectable } from "@angular/core";
 
 @Injectable({ providedIn: 'root' })
 export class PosPermissionService {
@@ -69,4 +69,9 @@ export class PosPermissionService {
     return order.status !== OrderStatus.REFUNDED &&
            order.status !== OrderStatus.COMPLETED;
   }
+
+  canManageInventory = computed(() => this.auth.hasRole([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.DEPOT_MANAGER]));
+  canManageCustomers = computed(() => this.auth.hasRole([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER]));
+  canManageShifts = computed(() => this.auth.hasRole([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER]));
+
 }
