@@ -22,8 +22,7 @@ import { SidebarComponent } from "./sidebar.component";
                   (visibleChange)="sidebarVisible.set($event)" />
       
       <!-- Main Content -->
-      <div class="layout-main-container" (click)="onMainContainerClick()">
-        <!-- Navbar -->
+<div class="layout-main-container" (click)="onMainContainerClick($event)">        <!-- Navbar -->
         <app-navbar (toggleSidebar)="toggleSidebar()" />
         
         <!-- Page Content -->
@@ -151,12 +150,19 @@ export class AppLayoutComponent {
     this.sidebarVisible.update(visible => !visible);
   }
 
-  onMainContainerClick() {
-    // Sur mobile, fermer le sidebar si ouvert
-    if (window.innerWidth <= 992 && this.sidebarVisible()) {
-      this.sidebarVisible.set(false);
-    }
+  // onMainContainerClick() {
+  //   // Sur mobile, fermer le sidebar si ouvert
+  //   if (window.innerWidth <= 992 && this.sidebarVisible()) {
+  //     this.sidebarVisible.set(false);
+  //   }
+  // }
+  onMainContainerClick(event: MouseEvent) {
+  // Only close if clicking the background, not interactive elements
+  const target = event.target as HTMLElement;
+  if (target.closest('.layout-main') && window.innerWidth <= 992 && this.sidebarVisible()) {
+    this.sidebarVisible.set(false);
   }
+}
 
   showLoadingIndicator() {
     this.showLoading.set(true);
