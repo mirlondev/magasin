@@ -1,7 +1,6 @@
 import { CommonModule } from "@angular/common";
 import { Component, Input, computed, inject } from "@angular/core";
 import { RouterLink, RouterLinkActive } from "@angular/router";
-import { MenuItem } from "primeng/api";
 import { AvatarModule } from "primeng/avatar";
 import { BadgeModule } from "primeng/badge";
 import { RippleModule } from "primeng/ripple";
@@ -9,6 +8,15 @@ import { TooltipModule } from "primeng/tooltip";
 import { EmployeeRole } from "../core/models";
 import { AuthService } from "../core/services/auth.service";
 
+interface MenuItem {
+  label: string;
+  icon: string;
+  routerLink: string;
+  roles: EmployeeRole[];
+  badge?: number;
+  expanded?: boolean;
+  items?: MenuItem[];
+}
 @Component({
   selector: 'app-sidebar-content',
   standalone: true,
@@ -318,13 +326,35 @@ export class SidebarContentComponent {
           icon: 'pi-folder',
           routerLink: '/categories',
           roles: [EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN]
+        }
+      ]
+    },
+
+
+    {
+      label: 'Inventaires',
+      icon: 'pi-box',
+      routerLink: '/inventory',
+      roles: [EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.DEPOT_MANAGER],
+      items: [
+        {
+          label: 'Nouveau',
+          icon: 'pi-tag',
+          routerLink: '/inventory/new',
+          roles: [EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.DEPOT_MANAGER, EmployeeRole.EMPLOYEE]
         },
         {
-          label: 'Inventaire',
+          label: 'calcul',
+          icon: 'pi-folder',
+          routerLink: '/inventory/schedule',
+          roles: [EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN]
+        },
+        {
+          label: 'historique',
           icon: 'pi-warehouse',
-          routerLink: '/inventory',
+          routerLink: '/inventory/history',
           roles: [EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.DEPOT_MANAGER]
-        }
+        } 
       ]
     },
     {

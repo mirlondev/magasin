@@ -362,43 +362,79 @@ export class PosSaleComponent extends OrderCreateBaseComponent {
       life: 5000
     });
 
-    // Impression automatique du ticket
+    // Generate and print receipt automatically
     this.confirmationService.confirm({
       message: 'Voulez-vous imprimer le ticket de caisse ?',
-      header: 'Impression',
+      header: 'Impression du ticket',
       icon: 'pi pi-print',
       acceptLabel: 'Imprimer',
       rejectLabel: 'Plus tard',
-      accept: () => this.generateReceipt(orderId),
+      accept: () => this.printReceipt(orderId),
       reject: () => this.goBack()
     });
   }
 
-  override processOrder() {
-    // Ne pas utiliser - la logique est dans onPaymentComplete
+  private printReceipt(orderId: string) {
+    // Try thermal printer first, fallback to PDF
+    this.ordersService.generateThermalReceipt(orderId).subscribe({
+      next: (blob) => {
+        // For thermal printer, we might send directly to printer
+        // For now, download the thermal data
+        this.downloadBlob(blob, `ticket-thermal-${orderId}.bin`);
+        
+        // Also offer PDF option
+        this.confirmationService.confirm({
+          message: 'Voulez-vous également télécharger le ticket en PDF ?',
+          header: 'Téléchargement PDF',
+          icon: 'pi pi-file-pdf',
+          acceptLabel: 'Oui',
+          rejectLabel: 'Non',
+          accept: () => this.downloadReceiptPdf(orderId),
+          reject: () => this.goBack()
+        });
+      },
+      error: (error) => {
+        console.error('Error generating thermal receipt:', error);
+        // Fallback to PDF
+        this.downloadReceiptPdf(orderId);
+      }
+    });
   }
 
-  private generateReceipt(orderId: string) {
-    this.ordersService.generateInvoice(orderId).subscribe({
+  private downloadReceiptPdf(orderId: string) {
+    this.ordersService.generateReceipt(orderId).subscribe({
       next: (blob) => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `ticket-${orderId}.pdf`;
-        a.click();
-        window.URL.revokeObjectURL(url);
+        this.downloadBlob(blob, `ticket-${orderId}.pdf`);
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Ticket généré',
+          detail: 'Le ticket a été téléchargé'
+        });
         this.goBack();
       },
       error: (error) => {
-        console.error('Error generating receipt:', error);
+        console.error('Error generating receipt PDF:', error);
         this.messageService.add({
-          severity: 'warn',
-          summary: 'Impression',
+          severity: 'error',
+          summary: 'Erreur',
           detail: 'Erreur lors de la génération du ticket'
         });
         this.goBack();
       }
     });
+  }
+
+  private downloadBlob(blob: Blob, filename: string) {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  }
+
+  override processOrder() {
+    // Ne pas utiliser - la logique est dans onPaymentComplete
   }
 
   private getPaymentMethodLabel(method: PaymentMethod): string {

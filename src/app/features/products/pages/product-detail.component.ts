@@ -318,7 +318,7 @@ export class ProductDetailComponent implements OnInit {
   productId = signal<string | null>(null);
   product = signal<Product | null>(null);
   loading = signal(true);
-  
+
   // Chart data
   salesChartData = signal<any>(null);
   chartOptions = {
@@ -372,14 +372,14 @@ export class ProductDetailComponent implements OnInit {
 
   loadSalesData(id: string) {
     // Mock sales data - replace with actual API
-    const labels = Array.from({length: 30}, (_, i) => {
+    const labels = Array.from({ length: 30 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (29 - i));
       return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
     });
-    
-    const data = Array.from({length: 30}, () => Math.floor(Math.random() * 50));
-    
+
+    const data = Array.from({ length: 30 }, () => Math.floor(Math.random() * 50));
+
     this.salesChartData.set({
       labels,
       datasets: [{

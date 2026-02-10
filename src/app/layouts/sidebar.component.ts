@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { Component, EventEmitter, Input, Output, computed, inject, signal } from "@angular/core";
+import { Component, EventEmitter, Input, Output, computed, inject, signal, effect } from "@angular/core";
 import { NavigationEnd, Router, RouterLink, RouterLinkActive } from "@angular/router";
 import { AvatarModule } from "primeng/avatar";
 import { BadgeModule } from "primeng/badge";
@@ -12,15 +12,7 @@ import { AuthService } from "../core/services/auth.service";
 import { ThemeService } from "../core/services/theme.service";
 import { SidebarContentComponent } from "./app-sidebar-content.component";
 
-interface MenuItem {
-  label: string;
-  icon: string;
-  routerLink: string;
-  roles: EmployeeRole[];
-  badge?: number;
-  expanded?: boolean;
-  items?: MenuItem[];
-}
+
 
 @Component({
   selector: 'app-sidebar',
@@ -38,12 +30,12 @@ interface MenuItem {
     @if (isMobile()) {
       <!-- Mobile Sidebar Overlay -->
       <div class="mobile-sidebar-overlay" 
-           [class.visible]="visible"
+           [class.visible]="visibleSignal()"
            (click)="closeSidebar()">
       </div>
       
       <div class="mobile-sidebar" 
-           [class.visible]="visible">
+           [class.visible]="visibleSignal()">
         <div class="sidebar-header">
           <h2 class="text-xl font-bold">Retail POS</h2>
           <button pButton 
@@ -189,21 +181,18 @@ interface MenuItem {
 })
 export class SidebarComponent {
   @Input() set visible(value: boolean) {
-    this._visible = value;
+    this.visibleSignal.set(value);
   }
   @Output() visibleChange = new EventEmitter<boolean>();
   
   private router = inject(Router);
   private themeService = inject(ThemeService);
   
-  private _visible = true;
+  // Use a signal for reactive visibility state
+  visibleSignal = signal<boolean>(true);
   collapsed = signal<boolean>(false);
   isMobile = signal<boolean>(false);
   activeRoute = signal<string>('');
-  
-  get visible(): boolean {
-    return this._visible;
-  }
 
   constructor() {
     this.checkMobile();
@@ -222,8 +211,11 @@ export class SidebarComponent {
   }
 
   private checkMobile() {
+    const wasMobile = this.isMobile();
     this.isMobile.set(window.innerWidth <= 992);
-    if (this.isMobile()) {
+    
+    // Reset collapsed state when switching to mobile
+    if (!wasMobile && this.isMobile()) {
       this.collapsed.set(false);
     }
   }
@@ -233,8 +225,7 @@ export class SidebarComponent {
   }
   
   closeSidebar() {
-    this._visible = false;
+    this.visibleSignal.set(false);
     this.visibleChange.emit(false);
   }
 }
-

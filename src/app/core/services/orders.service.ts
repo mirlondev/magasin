@@ -224,13 +224,108 @@ export class OrderService {
   /**
    * Generate invoice
    */
-  generateInvoice(orderId: string): Observable<Blob> {
+  // generateInvoice(orderId: string): Observable<Blob> {
+  //   return this.http.get(
+  //     this.apiConfig.getEndpoint(`/invoices/order/${orderId}`),
+  //     { responseType: 'blob' }
+  //   );
+  // }
+/**
+   * Generate and download receipt PDF (for cash payments)
+   */
+  generateReceipt(orderId: string): Observable<Blob> {
     return this.http.get(
-      this.apiConfig.getEndpoint(`/invoices/order/${orderId}`),
+      this.apiConfig.getEndpoint(`/receipts/order/${orderId}/pdf`),
       { responseType: 'blob' }
+    ).pipe(
+      catchError(error => {
+        this.errorHandler.handleError(error, 'Génération du ticket');
+        throw error;
+      })
     );
   }
 
+  /**
+   * Generate thermal printer receipt
+   */
+  generateThermalReceipt(orderId: string): Observable<Blob> {
+    return this.http.get(
+      this.apiConfig.getEndpoint(`/receipts/order/${orderId}/thermal`),
+      { responseType: 'blob' }
+    ).pipe(
+      catchError(error => {
+        this.errorHandler.handleError(error, 'Génération du ticket thermique');
+        throw error;
+      })
+    );
+  }
+
+  /**
+   * Get receipt as text (for display or thermal printer)
+   */
+  getReceiptText(orderId: string): Observable<string> {
+    return this.http.get(
+      this.apiConfig.getEndpoint(`/receipts/order/${orderId}/text`),
+      { responseType: 'text' }
+    ).pipe(
+      catchError(error => {
+        this.errorHandler.handleError(error, 'Récupération du ticket');
+        throw error;
+      })
+    );
+  }
+
+  // ==================== INVOICE METHODS ====================
+
+  /**
+   * Generate invoice for an order (for credit sales)
+   */
+  generateInvoice(orderId: string): Observable<any> {
+    return this.http.post<ApiResponse<any>>(
+      this.apiConfig.getEndpoint(`/invoices/order/${orderId}`),
+      {}
+    ).pipe(
+      map(response => response.data),
+      catchError(error => {
+        this.errorHandler.handleError(error, 'Génération de la facture');
+        throw error;
+      })
+    );
+  }
+
+  /**
+   * Download invoice PDF
+   */
+  downloadInvoicePdf(invoiceId: string): Observable<Blob> {
+    return this.http.get(
+      this.apiConfig.getEndpoint(`/invoices/${invoiceId}/pdf`),
+      { responseType: 'blob' }
+    ).pipe(
+      catchError(error => {
+        this.errorHandler.handleError(error, 'Téléchargement de la facture');
+        throw error;
+      })
+    );
+  }
+
+  /**
+   * Get invoice by order ID
+   */
+  getInvoiceByOrder(orderId: string): Observable<any> {
+    return this.http.get<ApiResponse<any>>(
+      this.apiConfig.getEndpoint(`/invoices/order/${orderId}`)
+    ).pipe(
+      map(response => response.data),
+      catchError(error => {
+        this.errorHandler.handleError(error, 'Récupération de la facture');
+        throw error;
+      })
+    );
+  }
+
+  // ==================== HELPER METHODS ====================
+
+  /**
   /**
    * Delete order
    */

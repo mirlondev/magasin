@@ -27,15 +27,15 @@ import { ProgressSpinnerModule } from "primeng/progressspinner";
 import { ChartModule } from "primeng/chart";
 import { TextareaModule } from 'primeng/textarea';
 import { DatePickerModule } from "primeng/datepicker";
-import { AuthService } from "../../../core/services/auth.service";
-import { InventoryService } from "../../../core/services/inventory.service";
-import { StoresService } from "../../../core/services/stores.service";
-import { ThemeService, Theme } from "../../../core/services/theme.service";
-import { EmployeeRole, StockStatus, Store } from "../../../core/models";
-import { TableSkeletonComponent, CardSkeletonComponent, ChartSkeletonComponent } from "../../../shared/components/skeleton-loader.component";
+import { AuthService } from "../../../../core/services/auth.service";
+import { InventoryService } from "../../../../core/services/inventory.service";
+import { StoresService } from "../../../../core/services/stores.service";
+import { ThemeService, Theme } from "../../../../core/services/theme.service";
+import { EmployeeRole, StockStatus, Store } from "../../../../core/models";
+import { TableSkeletonComponent, CardSkeletonComponent, ChartSkeletonComponent } from "../../../../shared/components/skeletons/skeleton-loader.component";
 import { ColorScheme } from "@primeuix/themes/types";
-import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
-import { FileSizePipe } from "../../../core/pipes/file-size.pipe";
+import { XafPipe } from "../../../../core/pipes/xaf-currency-pipe";
+import { FileSizePipe } from "../../../../core/pipes/file-size.pipe";
 
 @Component({
   selector: 'app-inventory-list',
@@ -86,21 +86,21 @@ export class InventoryListComponent implements OnInit {
   private router = inject(Router);
 
   // Signals from service
-  inventoryItems =computed(()=>this.inventoryService.inventoryItems());
-  loading =computed(()=> this.inventoryService.loading());
-  bulkLoading = computed(()=> this.inventoryService.bulkLoading());
-  total = computed(()=> this.inventoryService.total());
-  pageSize = computed(()=> this.inventoryService.pageSize());
-  lowStockItems = computed(()=> this.inventoryService.lowStockItems());
-  outOfStockItems = computed(()=> this.inventoryService.outOfStockItems());
-  overStockItems = computed(()=> this.inventoryService.overStockItems());
-  selectedItems = computed(()=> this.inventoryService.selectedItems());
-  totalValue = computed(()=> this.inventoryService.totalValue());
+  inventoryItems = computed(() => this.inventoryService.inventoryItems());
+  loading = computed(() => this.inventoryService.loading());
+  bulkLoading = computed(() => this.inventoryService.bulkLoading());
+  total = computed(() => this.inventoryService.total());
+  pageSize = computed(() => this.inventoryService.pageSize());
+  lowStockItems = computed(() => this.inventoryService.lowStockItems());
+  outOfStockItems = computed(() => this.inventoryService.outOfStockItems());
+  overStockItems = computed(() => this.inventoryService.overStockItems());
+  selectedItems = computed(() => this.inventoryService.selectedItems());
+  totalValue = computed(() => this.inventoryService.totalValue());
 
   // Theme signals
-  currentTheme = computed(()=> this.themeService.currentTheme());
-  currentColorScheme = computed(()=> this.themeService.currentTheme());
-  isDarkMode = computed(()=> this.themeService.isDarkTheme());
+  currentTheme = computed(() => this.themeService.currentTheme());
+  currentColorScheme = computed(() => this.themeService.currentTheme());
+  isDarkMode = computed(() => this.themeService.isDarkTheme());
 
   // Local signals
   searchTerm = signal('');

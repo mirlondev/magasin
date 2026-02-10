@@ -59,10 +59,10 @@ import { TagModule } from "primeng/tag";
       <div class="mb-6 flex items-center justify-between">
         <div>
           <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
-            {{ isEditMode() ? 'Modifier l\'Article d\'Inventaire' : 'Nouvel Article d\'Inventaire' }}
+            {{ isEditMode() ? "Modifier l\'Article d\'Inventaire" : "Nouvel Article d\'Inventaire"   }}
           </h1>
           <p class="text-gray-600 dark:text-gray-400 mt-1">
-            {{ isEditMode() ? 'Mettez à jour les paramètres de stock' : 'Créez un nouvel article d\'inventaire' }}
+            {{ isEditMode() ? "Mettez à jour les paramètres de stock" : "Créez un nouvel article d\'inventaire" }}
           </p>
         </div>
         <button pButton 
@@ -341,7 +341,7 @@ import { TagModule } from "primeng/tag";
                           type="button"
                           label="Annuler"
                           icon="pi pi-times"
-                          class="p-button-outlined w-full"
+                          class="p-button-outlined w-full mt-4"
                           [routerLink]="['/inventory']">
                   </button>
 
@@ -427,6 +427,7 @@ export class InventoryFormComponent implements OnInit {
     this.storesService.loadStores(1, 100).subscribe({
       next: (response) => {
         this.stores.set(response.items || []);
+        console.log(this.stores());
       }
     });
   }

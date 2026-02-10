@@ -31,7 +31,7 @@ import { CategoriesService } from "../../core/services/categories.service";
 import { ThemeService, Theme } from "../../core/services/theme.service";
 import { Category, EmployeeRole } from "../../core/models";
 import { XafPipe } from "../../core/pipes/xaf-currency-pipe";
-import { TableSkeletonComponent, CardSkeletonComponent } from "../../shared/components/skeleton-loader.component";
+import { TableSkeletonComponent, CardSkeletonComponent } from "../../shared/components/skeletons/skeleton-loader.component";
 import { ColorScheme } from "@primeuix/themes/types";
 import { FileSizePipe } from "../../core/pipes/file-size.pipe";
 
@@ -84,7 +84,7 @@ export class ProductsListComponent implements OnInit {
   loading = computed(() => this.productsService.loading());
   bulkLoading = computed(() => this.productsService.bulkLoading());
   total = computed(() => this.productsService.total());
-  pageSize =computed(() => this.productsService.pageSize());
+  pageSize = computed(() => this.productsService.pageSize());
   inStockProducts = computed(() => this.productsService.inStockProducts());
   outOfStockProducts = computed(() => this.productsService.outOfStockProducts());
   selectedProducts = computed(() => this.productsService.selectedProducts());

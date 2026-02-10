@@ -20,7 +20,7 @@ import { OrderCreateBaseComponent } from '../shared/order-create-base.component'
 import { OrderService } from '../../../../core/services/orders.service';
 import { CustomerSelectorComponent } from '../../components/customer-selector/customer-selector.component';
 import { SkeletonModule } from 'primeng/skeleton';
-
+import { DatePickerModule } from 'primeng/datepicker';
 @Component({
   selector: 'app-credit-sale',
   standalone: true,
@@ -40,7 +40,8 @@ import { SkeletonModule } from 'primeng/skeleton';
     OrderItemsComponent,
     OrderSummaryComponent,
     CustomerSelectorComponent,
-    SkeletonModule
+    SkeletonModule,
+    DatePickerModule
   ],
   template: `
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -185,10 +186,10 @@ import { SkeletonModule } from 'primeng/skeleton';
                 </div>
                 <div>
                   <label class="block text-sm font-medium mb-2">Date d'échéance</label>
-                  <input type="date" 
+                   <p-datepicker type="date" 
                          [(ngModel)]="dueDate"
                          class="w-full p-2 border rounded"
-                         [min]="today">
+                          [showIcon]="true" inputId="buttondisplay"  />
                 </div>
                 <div>
                   <label class="block text-sm font-medium mb-2">Notes (optionnel)</label>
@@ -299,7 +300,6 @@ export class CreditSaleComponent extends OrderCreateBaseComponent {
     this.processing.set(true);
 
     // Create order request WITHOUT initial payment
-    // The payment will be added as CREDIT type separately via backend
     const orderRequest = this.orderState.toOrderRequest(
       this.currentShift()?.storeId || '',
       undefined, // No payment method on order creation
@@ -367,42 +367,76 @@ export class CreditSaleComponent extends OrderCreateBaseComponent {
       life: 5000 
     });
     
-    // Generate credit invoice
-    this.confirmationService.confirm({
-      message: 'Voulez-vous imprimer la facture crédit ?',
-      header: 'Impression',
-      icon: 'pi pi-print',
-      acceptLabel: 'Imprimer',
-      rejectLabel: 'Plus tard',
-      accept: () => this.generateCreditInvoice(orderId),
-      reject: () => this.goBack()
+    // Generate invoice automatically for credit sales
+    this.generateAndDownloadInvoice(orderId);
+  }
+
+  private generateAndDownloadInvoice(orderId: string) {
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Génération de la facture',
+      detail: 'Veuillez patienter...'
+    });
+
+    // Generate the invoice
+    this.ordersService.generateInvoice(orderId).subscribe({
+      next: (invoice) => {
+        // Download the invoice PDF
+        this.downloadInvoicePdf(invoice.invoiceId);
+      },
+      error: (error) => {
+        console.error('Error generating invoice:', error);
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erreur',
+          detail: 'Erreur lors de la génération de la facture'
+        });
+        
+        // Still ask if they want to try again
+        this.confirmationService.confirm({
+          message: 'La facture n\'a pas pu être générée automatiquement. Voulez-vous réessayer ?',
+          header: 'Erreur de génération',
+          icon: 'pi pi-exclamation-triangle',
+          acceptLabel: 'Réessayer',
+          rejectLabel: 'Plus tard',
+          accept: () => this.generateAndDownloadInvoice(orderId),
+          reject: () => this.goBack()
+        });
+      }
+    });
+  }
+
+  private downloadInvoicePdf(invoiceId: string) {
+    this.ordersService.downloadInvoicePdf(invoiceId).subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `facture-credit-${invoiceId}.pdf`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+        
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Facture générée',
+          detail: 'La facture a été téléchargée avec succès'
+        });
+        
+        this.goBack();
+      },
+      error: (error) => {
+        console.error('Error downloading invoice:', error);
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erreur',
+          detail: 'Erreur lors du téléchargement de la facture'
+        });
+        this.goBack();
+      }
     });
   }
 
   override processOrder() {
     this.createCreditSale();
-  }
-
-  private generateCreditInvoice(orderId: string) {
-    this.ordersService.generateInvoice(orderId).subscribe({
-      next: (blob) => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `facture-credit-${orderId}.pdf`;
-        a.click();
-        window.URL.revokeObjectURL(url);
-        this.goBack();
-      },
-      error: (error) => {
-        console.error('Error generating credit invoice:', error);
-        this.messageService.add({
-          severity: 'warn',
-          summary: 'Impression',
-          detail: 'Erreur lors de la génération de la facture'
-        });
-        this.goBack();
-      }
-    });
   }
 }
