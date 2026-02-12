@@ -7,7 +7,7 @@ import { roleGuard } from "../guards/role-guard";
 import { PosSaleComponent } from "../../features/orders/pages/pos-sale/pos-sale.component";
 import { CreditSaleComponent } from "../../features/orders/pages/credit-sale/credit-sale.component";
 import { ProformaComponent } from "../../features/orders/pages/proforma/proforma.component";
-
+import { ShiftOpenGuard } from "../guards/shift-open.guard";
 export const ORDERS_ROUTES: Routes = [
   
     { path: '',
@@ -25,7 +25,7 @@ export const ORDERS_ROUTES: Routes = [
       
       // Sales Pages
       { path: 'pos-sale', component: PosSaleComponent ,
-       canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER])]
+       canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER] ), ShiftOpenGuard]
 
       },
       { path: 'credit-sale', component: CreditSaleComponent,

@@ -16,7 +16,7 @@ export const SHIFT_REPORTS_ROUTES: Routes = [
   {
     path: 'new',
     component: ShiftReportOpenComponent,
-    canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER]), noShiftOpenGuard]
+    canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER])]
   },
   {
     path: ':id',
