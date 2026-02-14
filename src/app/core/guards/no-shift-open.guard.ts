@@ -11,12 +11,11 @@ export const noShiftOpenGuard: CanActivateFn = (route, state) => {
   
     shiftReportsService.getCurrentShift().subscribe(shift => {
         if(shift && shift.status === ShiftStatus.OPEN) {
-            alert('le shift est ouvert');
+            //alert('le shift est ouvert');
             router.navigate([`/shift-reports/${shift.shiftReportId}`]);
-            return true; 
         }
-        alert('le shift n\'est pas ouvert');
-        return false;
+        return true; 
+
     });
 
     return false;

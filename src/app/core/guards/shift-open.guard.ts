@@ -15,7 +15,7 @@ export const ShiftOpenGuard: CanActivateFn = (route, state) => {
     }
 
     alert('Impossible d’accéder au POS : la caisse n’est pas ouverte.');
-    router.navigate(['/shift-reports/new']);
+    router.navigateByUrl('/shift-reports/new');
     return true;
     
 }
