@@ -1,3 +1,4 @@
+// payment-cash.component.ts
 import { Component, inject, input, output, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -9,6 +10,7 @@ import { RadioButtonModule } from 'primeng/radiobutton';
 import { SelectModule } from 'primeng/select';
 import { TextareaModule } from 'primeng/textarea';
 import { DividerModule } from 'primeng/divider';
+import { TooltipModule } from 'primeng/tooltip'; // AJOUTÉ
 import { PaymentMethod } from '../../../../core/models';
 import { XafPipe } from '../../../../core/pipes/xaf-currency-pipe';
 
@@ -32,6 +34,7 @@ interface PaymentEntry {
     SelectModule,
     TextareaModule,
     DividerModule,
+    TooltipModule, // AJOUTÉ pour pTooltip
     XafPipe
   ],
   template: `
@@ -39,6 +42,7 @@ interface PaymentEntry {
               [(visible)]="visible"
               [modal]="true"
               [style]="{ width: '700px' }"
+              [closable]="false"
               (onHide)="onCancel()">
       <div class="space-y-6">
         <!-- Amount Due and Remaining -->
@@ -79,7 +83,8 @@ interface PaymentEntry {
                           icon="pi pi-times" 
                           class="p-button-text p-button-sm p-button-danger"
                           (click)="removePayment($index)"
-                          pTooltip="Supprimer">
+                          pTooltip="Supprimer"
+                          tooltipPosition="left">
                   </button>
                 </div>
               </div>
@@ -289,14 +294,12 @@ export class PaymentCashComponent {
   canAddPayment(): boolean {
     if (this.amountReceived <= 0) return false;
     if (this.amountReceived > this.remainingAmount()) {
-      // For cash, allow overpayment (will calculate change)
       if (this.selectedMethod !== PaymentMethod.CASH) return false;
     }
     return true;
   }
 
   canFinalize(): boolean {
-    // Can finalize if total is fully paid or has at least one payment
     return this.remainingAmount() === 0 || this.payments().length > 0;
   }
 
@@ -328,12 +331,10 @@ export class PaymentCashComponent {
   onSubmit() {
     if (!this.canFinalize()) return;
 
-    // If there's a pending payment to add, add it first
     if (this.amountReceived > 0 && this.canAddPayment()) {
       this.onAddPayment();
     }
 
-    // Emit all collected payments
     this.paymentComplete.emit(this.payments());
   }
 

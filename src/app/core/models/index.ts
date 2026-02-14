@@ -34,10 +34,23 @@ export interface Payment {
   cancelledAt?: string;
   isActive: boolean;
 }
+export enum OrderType {
+  POS_SALE = 'POS_SALE',        // Vente en caisse → Ticket
+  CREDIT_SALE = 'CREDIT_SALE',  // Vente à crédit → Facture
+  PROFORMA = 'PROFORMA',        // Devis/Proforma → Proforma
+  ONLINE = 'ONLINE'             // Vente en ligne → Facture
+}
 
+export enum DocumentType {
+  TICKET = 'TICKET',
+  INVOICE = 'INVOICE',
+  PROFORMA = 'PROFORMA',
+  RECEIPT = 'RECEIPT'
+}
 export interface Order {
   orderId: string;
   orderNumber: string;
+  orderType?: OrderType;
   customerId?: string;
   cashierId: string;
   storeId: string;

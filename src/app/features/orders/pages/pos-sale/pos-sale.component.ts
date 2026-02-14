@@ -1,6 +1,8 @@
-import { Component, inject, signal } from '@angular/core';
+// pos-sale.component.ts
+import { Component, inject, signal, OnInit, ViewContainerRef, EnvironmentInjector } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { MessageService, ConfirmationService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
@@ -11,7 +13,7 @@ import { ToastModule } from 'primeng/toast';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 
 import { PaymentCashComponent } from '../../components/payment-cash/payment-cash.component';
-import { PaymentMethod, OrderStatus, PaymentStatus, ShiftStatus } from '../../../../core/models';
+import { PaymentMethod, ShiftStatus } from '../../../../core/models';
 import { OrderCreateBaseComponent } from '../shared/order-create-base.component';
 import { OrderItemsComponent } from "../../components/order-items/order-items.component";
 import { OrderSummaryComponent } from "../../components/order-summary/order-summary.component";
@@ -21,6 +23,8 @@ import { SelectModule } from 'primeng/select';
 import { OrderService } from '../../../../core/services/orders.service';
 import { OrderHelper } from '../../../../core/utils/helpers';
 import { SkeletonModule } from 'primeng/skeleton';
+import { PrintTarget, ReceiptService } from '../../../../core/services/receipt.service';
+import { ReceiptDialogComponent } from '../../components/receipt-dialog/receipt-dialog.component';
 
 interface PaymentEntry {
   method: PaymentMethod;
@@ -50,179 +54,173 @@ interface PaymentEntry {
     SkeletonModule
   ],
   template: `
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <!-- Colonne gauche - Sélection produits -->
-        <div class="lg:col-span-2">
-          <p-card header="Sélection des Produits">
-            <!-- Barre de recherche et filtres -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label class="block text-sm font-medium mb-2">Recherche</label>
-                <div class="p-input-icon-left w-full">
-                  <i class="pi pi-search"></i>
-                  <input pInputText 
-                         type="text" 
-                         [ngModel]="searchTerm()"
-                         (ngModelChange)="searchTerm.set($event)"
-                         placeholder="Nom, SKU, code-barres..."
-                         class="w-full" />
-                </div>
-              </div>
-              
-              <div>
-                <label class="block text-sm font-medium mb-2">Catégorie</label>
-                <p-select [options]="categoryOptions()"
-                         [ngModel]="selectedCategoryId()"
-                         (ngModelChange)="selectedCategoryId.set($event); onFilterChange()"
-                         class="w-full">
-                </p-select>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <!-- Colonne gauche - Sélection produits -->
+      <div class="lg:col-span-2">
+        <p-card header="Sélection des Produits">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="block text-sm font-medium mb-2">Recherche</label>
+              <div class="p-input-icon-left w-full">
+                <i class="pi pi-search"></i>
+                <input pInputText 
+                       type="text" 
+                       [ngModel]="searchTerm()"
+                       (ngModelChange)="searchTerm.set($event)"
+                       placeholder="Nom, SKU, code-barres..."
+                       class="w-full" />
               </div>
             </div>
+            
+            <div>
+              <label class="block text-sm font-medium mb-2">Catégorie</label>
+              <p-select [options]="categoryOptions()"
+                       [ngModel]="selectedCategoryId()"
+                       (ngModelChange)="selectedCategoryId.set($event); onFilterChange()"
+                       class="w-full">
+              </p-select>
+            </div>
+          </div>
 
-            <!-- Grille produits -->
-            <div class="border rounded-lg p-4">
-              @if (!shiftReady()) {
-                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  @for (i of [1,2,3,4,5,6,7,8]; track i) {
-                    <p-card>
-                      <p-skeleton height="140px" class="mb-3"></p-skeleton>
-                      <p-skeleton width="80%" class="mb-2"></p-skeleton>
-                      <p-skeleton width="60%"></p-skeleton>
-                    </p-card>
-                  }
+          <div class="border rounded-lg p-4">
+            @if (!shiftReady()) {
+              <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                @for (i of [1,2,3,4,5,6,7,8]; track i) {
+                  <p-card>
+                    <p-skeleton height="140px" class="mb-3"></p-skeleton>
+                    <p-skeleton width="80%" class="mb-2"></p-skeleton>
+                    <p-skeleton width="60%"></p-skeleton>
+                  </p-card>
+                }
+              </div>
+            }
+            @else {
+              @if (productsService.loading()) {
+                <div class="text-center py-8">
+                  <i class="pi pi-spin pi-spinner text-4xl text-primary mb-4"></i>
+                  <p class="text-gray-600">Chargement des produits...</p>
+                </div>
+              }
+              @else if (productsService.products().length === 0) {
+                <div class="text-center py-8">
+                  <i class="pi pi-box text-4xl text-gray-400 mb-4"></i>
+                  <p class="text-gray-600">Aucun produit trouvé</p>
                 </div>
               }
               @else {
-                @if (productsService.loading()) {
-                  <div class="text-center py-8">
-                    <i class="pi pi-spin pi-spinner text-4xl text-primary mb-4"></i>
-                    <p class="text-gray-600">Chargement des produits...</p>
-                  </div>
-                }
-                @else if (productsService.products().length === 0) {
-                  <div class="text-center py-8">
-                    <i class="pi pi-box text-4xl text-gray-400 mb-4"></i>
-                    <p class="text-gray-600">Aucun produit trouvé</p>
-                  </div>
-                }
-                @else {
-                  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    @for (product of productsService.products(); track product.productId) {
-                      <div class="product-card border rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
-                           (click)="addToCart(product)">
-                        <div class="aspect-square bg-gray-100 relative overflow-hidden">
-                          @if (getProductImage(product)) {
-                            <img [src]="getProductImage(product)" 
-                                 [alt]="product.name"
-                                 class="w-full h-full object-cover" />
-                          } @else {
-                            <div class="w-full h-full flex items-center justify-center">
-                              <i class="pi pi-image text-gray-300 text-3xl"></i>
-                            </div>
-                          }
-                          <div class="absolute top-2 right-2">
-                            <p-tag [value]="getStockLabel(product)" 
-                                   [severity]="getStockSeverity(product)"
-                                   size="small" />
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  @for (product of productsService.products(); track product.productId) {
+                    <div class="product-card border rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+                         (click)="addToCart(product)">
+                      <div class="aspect-square bg-gray-100 relative overflow-hidden">
+                        @if (getProductImage(product)) {
+                          <img [src]="getProductImage(product)" 
+                               [alt]="product.name"
+                               class="w-full h-full object-cover" />
+                        } @else {
+                          <div class="w-full h-full flex items-center justify-center">
+                            <i class="pi pi-image text-gray-300 text-3xl"></i>
                           </div>
-                        </div>
-                        <div class="p-3">
-                          <div class="font-semibold text-sm truncate mb-1">{{ product.name }}</div>
-                          <div class="flex justify-between items-center">
-                            <div class="text-xs text-gray-500">{{ product.sku || 'N/A' }}</div>
-                            <div class="font-bold text-primary">{{ product.price | xaf}}</div>
-                          </div>
+                        }
+                        <div class="absolute top-2 right-2">
+                          <p-tag [value]="getStockLabel(product)" 
+                                 [severity]="getStockSeverity(product)"
+                                 size="small" />
                         </div>
                       </div>
-                    }
-                  </div>
-                }
+                      <div class="p-3">
+                        <div class="font-semibold text-sm truncate mb-1">{{ product.name }}</div>
+                        <div class="flex justify-between items-center">
+                          <div class="text-xs text-gray-500">{{ product.sku || 'N/A' }}</div>
+                          <div class="font-bold text-primary">{{ product.price | xaf}}</div>
+                        </div>
+                      </div>
+                    </div>
+                  }
+                </div>
               }
-            </div>
-          </p-card>
-        </div>
-
-        <!-- Colonne droite - Panier et paiement -->
-        <div>
-          <p-card header="Panier">
-            <app-order-items 
-              [items]="orderState.items()"
-              [customer]="orderState.customer()"
-              (updateQuantity)="onUpdateQuantity($event)"
-              (removeItem)="onRemoveItem($event)"
-              (selectCustomer)="showCustomerDialog.set(true)"
-              (clearCustomer)="removeCustomer()">
-            </app-order-items>
-
-            <app-order-summary
-              [subtotal]="orderState.subtotal()"
-              [discountAmount]="orderState.discountAmount()"
-              [taxRate]="orderState.taxRate()"
-              [taxAmount]="orderState.taxAmount()"
-              [total]="orderState.total()"
-              [itemCount]="orderState.itemCount()"
-              [uniqueItems]="orderState.items().length">
-            </app-order-summary>
-
-            <!-- Bouton PAYER -->
-            <button pButton 
-                    label="PAYER" 
-                    icon="pi pi-credit-card" 
-                    class="w-full p-button-success mt-4 text-lg font-bold py-3"
-                    (click)="showPaymentDialog = true"
-                    [disabled]="!canProcess()">
-            </button>
-
-            <!-- Aperçu notes -->
-            @if (orderState.notes()) {
-              <div class="mt-4 p-3 bg-gray-50 rounded">
-                <div class="text-sm text-gray-500">Notes:</div>
-                <div class="text-sm">{{ orderState.notes() }}</div>
-              </div>
             }
-          </p-card>
-        </div>
+          </div>
+        </p-card>
       </div>
 
-      <!-- Dialog paiement -->
-      @if (showPaymentDialog) {
-        <app-payment-cash
-          [totalAmount]="orderState.total()"
-          [orderNotes]="orderState.notes()"
-          (paymentComplete)="onPaymentComplete($event)"
-          (cancel)="showPaymentDialog = false">
-        </app-payment-cash>
-      }
+      <div>
+        <p-card header="Panier">
+          <app-order-items 
+            [items]="orderState.items()"
+            [customer]="orderState.customer()"
+            (updateQuantity)="onUpdateQuantity($event)"
+            (removeItem)="onRemoveItem($event)"
+            (selectCustomer)="showCustomerDialog.set(true)"
+            (clearCustomer)="removeCustomer()">
+          </app-order-items>
+
+          <app-order-summary
+            [subtotal]="orderState.subtotal()"
+            [discountAmount]="orderState.discountAmount()"
+            [taxRate]="orderState.taxRate()"
+            [taxAmount]="orderState.taxAmount()"
+            [total]="orderState.total()"
+            [itemCount]="orderState.itemCount()"
+            [uniqueItems]="orderState.items().length">
+          </app-order-summary>
+
+          <button pButton 
+                  label="PAYER" 
+                  icon="pi pi-credit-card" 
+                  class="w-full p-button-success mt-4 text-lg font-bold py-3"
+                  (click)="showPaymentDialog = true"
+                  [disabled]="!canProcess()">
+          </button>
+                  </p-card>
+          @if (orderState.notes()) {
+            <div class="mt-4 p-3 bg-gray-50 rounded">
+              <div class="text-sm text-gray-500">Notes:</div>
+              <div class="text-sm">{{ orderState.notes() }}</div>
+            </div>
+          }
+
+      </div>
+    </div>
+
+    @if (showPaymentDialog) {
+      <app-payment-cash
+        [totalAmount]="orderState.total()"
+        [orderNotes]="orderState.notes()"
+        (paymentComplete)="onPaymentComplete($event)"
+        (cancel)="showPaymentDialog = false">
+      </app-payment-cash>
+    }
   `,
   styles: [`
     .product-card {
       transition: all 0.2s ease;
     }
-    
     .product-card:hover {
       transform: translateY(-2px);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
   `]
 })
-export class PosSaleComponent extends OrderCreateBaseComponent {
+export class PosSaleComponent extends OrderCreateBaseComponent implements OnInit {
   private ordersService = inject(OrderService);
   private confirmationService = inject(ConfirmationService);
+  private receiptService = inject(ReceiptService);
+  private viewContainerRef = inject(ViewContainerRef);
+  private envInjector = inject(EnvironmentInjector);
 
   showPaymentDialog = false;
   processing = signal(false);
 
-  // Implémentation des méthodes abstraites
   override pageTitle(): string {
     return 'Vente en Caisse';
   }
 
   override canProcess(): boolean {
     const validation = this.orderState.validateForPosSale();
-    return validation.valid && !!this.currentShift();
+    return validation.valid && !!this.currentShift() && this.currentShift()!.status === ShiftStatus.OPEN;
   }
 
-  // Méthodes spécifiques POS
   onUpdateQuantity(event: { productId: string; delta: number }) {
     this.orderState.updateItemQuantity(event.productId, event.delta);
   }
@@ -238,6 +236,138 @@ export class PosSaleComponent extends OrderCreateBaseComponent {
   onPaymentComplete(payments: PaymentEntry[]) {
     this.processOrderWithPayments(payments);
   }
+
+
+
+
+  // CORRECTION PRINCIPALE : La méthode d'impression
+  private handleOrderSuccess(orderId: string, orderNumber: string) {
+    this.processing.set(false);
+    this.showPaymentDialog = false;
+    this.orderState.clear();
+
+    this.messageService.add({
+      severity: 'success',
+      summary: 'Vente validée',
+      detail: `Commande #${orderNumber} enregistrée`,
+      life: 5000
+    });
+
+    // Délai pour s'assurer que le toast s'affiche avant la confirmation
+    setTimeout(() => {
+      this.confirmationService.confirm({
+        message: 'Voulez-vous imprimer le ticket de caisse ?',
+        header: 'Impression du ticket',
+        icon: 'pi pi-print',
+        acceptLabel: 'Imprimer',
+        rejectLabel: 'Plus tard',
+        accept: () => {
+          console.log('Impression acceptée pour orderId:', orderId); // Debug
+          this.printReceipt(orderId);
+        },
+        reject: () => {
+          console.log('Impression refusée'); // Debug
+          this.goBack();
+        }
+      });
+    }, 100);
+  }
+
+  // CORRECTION : Méthode printReceipt avec meilleure gestion d'erreurs
+  private printReceipt(orderId: string) {
+    console.log('Début impression ticket:', orderId);
+    
+    this.ordersService.generateThermalReceipt(orderId).subscribe({
+      next: (blob) => {
+        console.log('Ticket thermique généré avec succès');
+        this.downloadBlob(blob, `ticket-thermal-${orderId}.bin`);
+        
+        // Proposer le PDF en plus
+        this.confirmationService.confirm({
+          message: 'Voulez-vous également télécharger le ticket en PDF ?',
+          header: 'Téléchargement PDF',
+          icon: 'pi pi-file-pdf',
+          acceptLabel: 'Oui',
+          rejectLabel: 'Non',
+          accept: () => {
+            this.downloadReceiptPdf(orderId);
+          },
+          reject: () => {
+            this.goBack();
+          }
+        });
+      },
+      error: (error) => {
+        console.error('Erreur génération ticket thermique:', error);
+        // Fallback vers PDF
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Impression thermique indisponible',
+          detail: 'Fallback vers PDF...'
+        });
+        this.downloadReceiptPdf(orderId);
+      }
+    });
+  }
+
+  // CORRECTION : Méthode downloadReceiptPdf avec gestion d'erreurs
+  private downloadReceiptPdf(orderId: string) {
+    console.log('Téléchargement PDF pour orderId:', orderId);
+    
+    this.ordersService.generateReceipt(orderId).subscribe({
+      next: (blob) => {
+        console.log('PDF généré avec succès');
+        this.downloadBlob(blob, `ticket-${orderId}.pdf`);
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Ticket généré',
+          detail: 'Le ticket PDF a été téléchargé'
+        });
+        this.goBack();
+      },
+      error: (error) => {
+        console.error('Erreur génération PDF:', error);
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erreur',
+          detail: 'Impossible de générer le ticket PDF'
+        });
+        this.goBack();
+      }
+    });
+  }
+
+  // CORRECTION : Méthode downloadBlob améliorée
+  private downloadBlob(blob: Blob, filename: string) {
+    try {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a); // Important pour Firefox
+      a.click();
+      document.body.removeChild(a); // Nettoyage
+      window.URL.revokeObjectURL(url);
+      console.log('Téléchargement initié:', filename);
+    } catch (error) {
+      console.error('Erreur lors du téléchargement:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Erreur',
+        detail: 'Erreur lors du téléchargement du fichier'
+      });
+    }
+  }
+
+  override processOrder() {
+    // Non utilisé - logique dans onPaymentComplete
+  }
+
+
+
+
+  //new methodes
+
 
   private processOrderWithPayments(payments: PaymentEntry[]) {
     if (this.processing()) return;
@@ -274,7 +404,6 @@ export class PosSaleComponent extends OrderCreateBaseComponent {
 
     this.processing.set(true);
 
-    // Create order with first payment (for backward compatibility)
     const firstPayment = payments[0];
     const orderRequest = this.orderState.toOrderRequest(
       this.currentShift()!.storeId,
@@ -282,7 +411,6 @@ export class PosSaleComponent extends OrderCreateBaseComponent {
       firstPayment.amount
     );
 
-    // Combine all payment notes
     const paymentNotes = payments
       .filter(p => p.notes)
       .map(p => `${this.getPaymentMethodLabel(p.method)}: ${p.notes}`)
@@ -294,154 +422,97 @@ export class PosSaleComponent extends OrderCreateBaseComponent {
         : paymentNotes;
     }
 
-    // Create the order
     this.ordersService.createOrder(orderRequest).subscribe({
       next: (order) => {
-        // If there are additional payments, add them
         if (payments.length > 1) {
-          this.addAdditionalPayments(order.orderId, payments.slice(1));
+          this.addAdditionalPayments(order.orderId, payments.slice(1), order.orderNumber);
         } else {
-          this.handleOrderSuccess(order.orderId, order.orderNumber);
+          this.finalizeSale(order.orderId, order.orderNumber);
         }
       },
       error: (error) => {
         this.processing.set(false);
-        console.error('Error creating POS order:', error);
         this.messageService.add({
           severity: 'error',
           summary: 'Erreur',
-          detail: error?.error?.message || 'Erreur lors de la création de la commande'
+          detail: error?.error?.message || 'Erreur lors de la création'
         });
       }
     });
   }
 
-  private addAdditionalPayments(orderId: string, additionalPayments: PaymentEntry[]) {
-    // Add additional payments sequentially
-    const paymentRequests = additionalPayments.map(payment => ({
-      method: payment.method,
-      amount: payment.amount,
-      notes: payment.notes
+  private addAdditionalPayments(orderId: string, additionalPayments: PaymentEntry[], orderNumber: string) {
+    const paymentRequests = additionalPayments.map(p => ({
+      method: p.method,
+      amount: p.amount,
+      notes: p.notes
     }));
 
-    // Process all additional payments
     Promise.all(
-      paymentRequests.map(req =>
+      paymentRequests.map(req => 
         this.ordersService.addPayment(orderId, req).toPromise()
       )
     ).then(() => {
-      // Get order number for success message
-      this.ordersService.getOrderById(orderId).subscribe({
-        next: (order) => {
-          this.handleOrderSuccess(orderId, order.orderNumber);
-        },
-        error: () => {
-          this.handleOrderSuccess(orderId, 'N/A');
-        }
-      });
-    }).catch(error => {
-      console.error('Error adding additional payments:', error);
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Paiements partiels',
-        detail: 'Certains paiements n\'ont pas pu être ajoutés'
-      });
-      this.handleOrderSuccess(orderId, 'N/A');
+      this.finalizeSale(orderId, orderNumber);
+    }).catch(() => {
+      this.finalizeSale(orderId, orderNumber); // Continue quand même
     });
   }
 
-  private handleOrderSuccess(orderId: string, orderNumber: string) {
-    this.processing.set(false);
-    this.showPaymentDialog = false;
-    this.orderState.clear();
+  /**
+   * FINALISATION : Affiche le dialog d'impression
+**/
+private finalizeSale(orderId: string, orderNumber: string) {
+  this.processing.set(false);
+  this.showPaymentDialog = false;
+  this.orderState.clear();
 
-    this.messageService.add({
-      severity: 'success',
-      summary: 'Vente validée',
-      detail: `Commande #${orderNumber} enregistrée`,
-      life: 5000
-    });
+  this.messageService.add({
+    severity: 'success',
+    summary: 'Vente validée',
+    detail: `Commande #${orderNumber} enregistrée`,
+    life: 3000
+  });
 
-    // Generate and print receipt automatically
-    this.confirmationService.confirm({
-      message: 'Voulez-vous imprimer le ticket de caisse ?',
-      header: 'Impression du ticket',
-      icon: 'pi pi-print',
-      acceptLabel: 'Imprimer',
-      rejectLabel: 'Plus tard',
-      accept: () => this.printReceipt(orderId),
-      reject: () => this.goBack()
-    });
-  }
+  // Ouvrir dialog d'impression après succès
+  setTimeout(() => {
+    this.openReceiptDialog(orderId);
+  }, 500);
+}
 
-  private printReceipt(orderId: string) {
-    // Try thermal printer first, fallback to PDF
-    this.ordersService.generateThermalReceipt(orderId).subscribe({
-      next: (blob) => {
-        // For thermal printer, we might send directly to printer
-        // For now, download the thermal data
-        this.downloadBlob(blob, `ticket-thermal-${orderId}.bin`);
-        
-        // Also offer PDF option
-        this.confirmationService.confirm({
-          message: 'Voulez-vous également télécharger le ticket en PDF ?',
-          header: 'Téléchargement PDF',
-          icon: 'pi pi-file-pdf',
-          acceptLabel: 'Oui',
-          rejectLabel: 'Non',
-          accept: () => this.downloadReceiptPdf(orderId),
-          reject: () => this.goBack()
-        });
-      },
-      error: (error) => {
-        console.error('Error generating thermal receipt:', error);
-        // Fallback to PDF
-        this.downloadReceiptPdf(orderId);
-      }
-    });
-  }
-
-  private downloadReceiptPdf(orderId: string) {
-    this.ordersService.generateReceipt(orderId).subscribe({
-      next: (blob) => {
-        this.downloadBlob(blob, `ticket-${orderId}.pdf`);
-        this.messageService.add({
-          severity: 'success',
-          summary: 'Ticket généré',
-          detail: 'Le ticket a été téléchargé'
-        });
-        this.goBack();
-      },
-      error: (error) => {
-        console.error('Error generating receipt PDF:', error);
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Erreur',
-          detail: 'Erreur lors de la génération du ticket'
-        });
-        this.goBack();
-      }
-    });
-  }
-
-  private downloadBlob(blob: Blob, filename: string) {
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    window.URL.revokeObjectURL(url);
-  }
-
-  override processOrder() {
-    // Ne pas utiliser - la logique est dans onPaymentComplete
-  }
+private openReceiptDialog(orderId: string) {
+  const componentRef = this.viewContainerRef.createComponent(ReceiptDialogComponent, {
+    environmentInjector: this.envInjector
+  });
+  
+  const instance = componentRef.instance;
+  instance.orderId.set(orderId);
+  instance.visible.set(true);
+  
+  instance.onComplete = (target: PrintTarget) => {
+    componentRef.destroy();
+    
+    if (target === 'later') {
+      this.goBack(); // Retour liste commandes
+    }
+    // Sinon rester pour nouvelle vente (panier déjà vidé)
+  };
+  
+  instance.onCancelCb = () => {
+    componentRef.destroy();
+    this.goBack();
+  };
+}
 
   private getPaymentMethodLabel(method: PaymentMethod): string {
-    return OrderHelper.getPaymentMethodLabel(method);
+    const labels: Record<string, string> = {
+      'CASH': 'Espèces',
+      'CREDIT_CARD': 'Carte',
+      'MOBILE_MONEY': 'Mobile Money'
+    };
+    return labels[method] || method;
   }
 
-  // Surdéfinition pour validation spécifique POS
   protected override canAddToCart(): boolean {
     return !!this.currentShift() && this.currentShift()!.status === ShiftStatus.OPEN;
   }
@@ -453,12 +524,7 @@ export class PosSaleComponent extends OrderCreateBaseComponent {
         summary: 'Caisse fermée',
         detail: 'Ouvrez une caisse avant d\'ajouter des produits'
       });
-    } else if (this.currentShift()!.status !== ShiftStatus.OPEN) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Session suspendue',
-        detail: 'La session de caisse n\'est pas ouverte'
-      });
     }
   }
+
 }

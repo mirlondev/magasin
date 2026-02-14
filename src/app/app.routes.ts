@@ -12,6 +12,12 @@ export const routes: Routes = [
     canMatch :[noAuthGuard],
 
   },
+    {
+    path: 'register',
+    loadComponent: () => import('./core/auth/register/register.component').then(m => m.RegisterComponent),
+    canMatch :[noAuthGuard],
+
+  },
   {
     path: '',
     component: AppLayoutComponent,

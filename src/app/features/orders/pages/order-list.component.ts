@@ -19,6 +19,7 @@ import { PosPermissionService } from "../../../core/services/pos-permission.serv
 import { OrderService } from "../../../core/services/orders.service";
 import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
 import { OrderHelper } from "../../../core/utils/helpers";
+import { DocumentButtonComponent } from "../../../shared/components/document-button/document-button.component";
 
 @Component({
   selector: 'app-order-list',
@@ -37,8 +38,9 @@ import { OrderHelper } from "../../../core/utils/helpers";
     ConfirmDialogModule,
     ToastModule,
     SelectModule,
-    XafPipe
-  ],
+    XafPipe,
+    DocumentButtonComponent
+],
   template: `
     <div class="p-4">
       <p-toast />
@@ -248,14 +250,7 @@ import { OrderHelper } from "../../../core/utils/helpers";
                           pTooltip="Annuler">
                   </button>
                 }
-                
-                <button pButton 
-                        icon="pi pi-file-pdf" 
-                        class="p-button-rounded p-button-warning p-button-text"
-                        (click)="generateInvoice(order.orderId)"
-                        [disabled]="loading()"
-                        pTooltip="Facture PDF">
-                </button>
+                <app-document-button [order]="order"></app-document-button>    
               </div>
             </td>
           </tr>

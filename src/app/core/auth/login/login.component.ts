@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { Component, OnInit, inject, signal } from "@angular/core";
+import { Component, OnInit, computed, inject, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { Router, RouterLink } from "@angular/router";
 import { ButtonModule } from "primeng/button";
@@ -10,6 +10,7 @@ import { MessageModule } from "primeng/message";
 import { PasswordModule } from "primeng/password";
 import { ProgressSpinnerModule } from "primeng/progressspinner";
 import { AuthService } from "../../services/auth.service";
+import { ThemeService } from "../../services/theme.service";
 
 @Component({
   selector: 'app-login',
@@ -27,6 +28,7 @@ import { AuthService } from "../../services/auth.service";
     ProgressSpinnerModule
   ],
   template: `
+  <div [class.dark-theme]="isDarkTheme()">
     <div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
       <div class="w-full max-w-md">
         <!-- Logo/Header -->
@@ -121,28 +123,6 @@ import { AuthService } from "../../services/auth.service";
               }
             </button>
 
-            <!-- Divider -->
-            <p-divider>
-              <span class="text-sm text-gray-500 px-2">Ou</span>
-            </p-divider>
-
-            <!-- Demo Credentials -->
-            <div class="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-              <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                <strong>Démonstration :</strong> Utilisez ces identifiants pour tester
-              </p>
-              <div class="grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <span class="font-semibold">Admin:</span>
-                  <p class="text-gray-500">admin / admin123</p>
-                </div>
-                <div>
-                  <span class="font-semibold">Caissier:</span>
-                  <p class="text-gray-500">cashier / cashier123</p>
-                </div>
-              </div>
-            </div>
-
             <!-- Register Link -->
             <div class="text-center">
               <p class="text-sm text-gray-600 dark:text-gray-400">
@@ -164,6 +144,7 @@ import { AuthService } from "../../services/auth.service";
         </div>
       </div>
     </div>
+  </div>
   `,
   styles: [`
     :host {
@@ -182,6 +163,7 @@ import { AuthService } from "../../services/auth.service";
 export class LoginComponent implements OnInit {
   private authService = inject(AuthService);
   private router = inject(Router);
+  private themeService = inject(ThemeService);
 
   credentials = signal({
     username: '',
@@ -192,6 +174,7 @@ export class LoginComponent implements OnInit {
   submitted = signal<boolean>(false);
   loading = this.authService.loading;
   error = this.authService.error;
+  isDarkTheme =computed(() => this.themeService.isDarkTheme());
 
   ngOnInit() {
     // Si déjà authentifié, rediriger vers le dashboard
@@ -220,12 +203,5 @@ export class LoginComponent implements OnInit {
     });
   }
 
-  // Méthode pour remplir les credentials de démonstration
-  useDemoCredentials(role: 'admin' | 'cashier') {
-    if (role === 'admin') {
-      this.credentials.set({ username: 'admin', password: 'admin123' });
-    } else {
-      this.credentials.set({ username: 'cashier', password: 'cashier123' });
-    }
-  }
+
 }

@@ -233,28 +233,31 @@ interface PaymentEntry {
 })
 export class PaymentCashComponent {
   // Inputs/Outputs
-  totalAmount = input(0);
   orderNotes = input('');
-  paymentComplete = output<PaymentEntry[]>();
   cancel = output<void>();
+
 
   // State
   visible = signal(true);
   loading = signal(false);
-  selectedMethod: PaymentMethod = PaymentMethod.CASH;
   amountReceived = 0;
   changeAmount = signal(0);
   notes = '';
-  
+
+
+  totalAmount = input(0);
+  paymentComplete = output<PaymentEntry[]>();
+
+  selectedMethod: PaymentMethod = PaymentMethod.CREDIT;
   // Payment tracking
   payments = signal<PaymentEntry[]>([]);
-  
+
   // Computed
-  totalPaid = computed(() => 
+  totalPaid = computed(() =>
     this.payments().reduce((sum, p) => sum + p.amount, 0)
   );
-  
-  remainingAmount = computed(() => 
+
+  remainingAmount = computed(() =>
     Math.max(0, this.totalAmount() - this.totalPaid())
   );
 
@@ -303,7 +306,7 @@ export class PaymentCashComponent {
   onAddPayment() {
     if (!this.canAddPayment()) return;
 
-    const paymentAmount = this.selectedMethod === PaymentMethod.CASH 
+    const paymentAmount = this.selectedMethod === PaymentMethod.CASH
       ? Math.min(this.amountReceived, this.remainingAmount())
       : this.amountReceived;
 
@@ -314,7 +317,7 @@ export class PaymentCashComponent {
     };
 
     this.payments.update(payments => [...payments, payment]);
-    
+
     // Reset form
     this.amountReceived = 0;
     this.notes = '';
