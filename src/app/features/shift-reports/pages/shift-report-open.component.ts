@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { Component, OnInit, inject, signal } from "@angular/core";
+import { Component, OnInit, inject, signal, computed } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { Router } from "@angular/router";
 import { MessageService } from "primeng/api";
@@ -12,7 +12,9 @@ import { ToastModule } from "primeng/toast";
 import { AuthService } from "../../../core/services/auth.service";
 import { ShiftReportsService } from "../../../core/services/shift-reports.service";
 import { StoresService } from "../../../core/services/stores.service";
+import { CashRegistersService } from "../../../core/services/cash-registers.service"; // NOUVEAU
 import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
+import { CashRegister, Store } from "../../../core/models";
 
 @Component({
   selector: 'app-shift-report-open',
@@ -27,7 +29,7 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
     SelectModule,
     ToastModule,
     XafPipe
-],
+  ],
   template: `
     <div class="p-4">
       <p-toast />
@@ -48,21 +50,56 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
         <div class="lg:col-span-2">
           <p-card>
             <form #shiftForm="ngForm" (ngSubmit)="onSubmit()" class="space-y-6">
+              
               <!-- Store Selection -->
               <div class="space-y-2">
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Magasin *
                 </label>
                 <p-select [options]="storeOptions()" 
-                           [(ngModel)]="shiftData()!.storeId"
+                           [(ngModel)]="selectedStoreId"
+                           (onChange)="onStoreChange($event)"
                            name="storeId"
                            required
                            placeholder="Sélectionnez un magasin"
                            class="w-full"
-                           [class.p-invalid]="submitted() && !shiftData()!.storeId">
+                            [class.p-invalid]="submitted() && !selectedStoreId">
                 </p-select>
-                @if (submitted() && !shiftData()!.storeId) {
+                 @if (submitted() && !selectedStoreId) {
                   <small class="p-error">Le magasin est obligatoire</small>
+                }
+              </div>
+
+              <!-- Cash Register Selection - NOUVEAU -->
+              <div class="space-y-2">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Caisse (Numéro de caisse) *
+                </label>
+                 <p-select [options]="cashRegisterOptions()" 
+                            [(ngModel)]="shiftData.cashRegisterId"
+                           name="cashRegisterId"
+                           required
+                           [disabled]="!selectedStoreId || loadingRegisters()"
+                           placeholder="Sélectionnez une caisse"
+                           class="w-full"
+                            [class.p-invalid]="submitted() && !shiftData.cashRegisterId">
+                  <ng-template let-option pTemplate="item">
+                    <div class="flex items-center justify-between w-full">
+                      <span>{{ option.label }}</span>
+                      @if (!option.isActive) {
+                        <span class="text-xs text-red-500 ml-2">(Inactif)</span>
+                      }
+                      @if (option.isOccupied) {
+                        <span class="text-xs text-orange-500 ml-2">(Occupé)</span>
+                      }
+                    </div>
+                  </ng-template>
+                </p-select>
+                 @if (submitted() && !shiftData.cashRegisterId) {
+                  <small class="p-error">La caisse est obligatoire</small>
+                }
+                @if (loadingRegisters()) {
+                  <small class="text-gray-500">Chargement des caisses...</small>
                 }
               </div>
 
@@ -71,18 +108,18 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Solde d'ouverture *
                 </label>
-                <p-inputNumber [(ngModel)]="shiftData()!.openingBalance" 
+                 <p-inputNumber [(ngModel)]="shiftData.openingBalance" 
                                name="openingBalance"
                                [min]="0" 
                                [step]="10"
                                required
                                mode="currency" 
-                               currency="EUR" 
+                               currency="XAF" 
                                locale="fr-FR"
                                class="w-full"
-                               [class.p-invalid]="submitted() && !shiftData()!.openingBalance">
+                                [class.p-invalid]="submitted() && !shiftData.openingBalance">
                 </p-inputNumber>
-                @if (submitted() && !shiftData()!.openingBalance) {
+                 @if (submitted() && !shiftData.openingBalance) {
                   <small class="p-error">Le solde d'ouverture est obligatoire</small>
                 }
                 <p class="text-sm text-gray-500">
@@ -95,7 +132,7 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Notes (optionnel)
                 </label>
-                <textarea [(ngModel)]="shiftData()!.notes"  pTextarea 
+                 <textarea [(ngModel)]="shiftData.notes"  pTextarea 
                                  name="notes"
                                  [rows]="4" 
                                  placeholder="Notes d'ouverture, informations importantes..."
@@ -114,7 +151,7 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
                             pButton
                             [label]="amount | xaf"
                             class="p-button-outlined"
-                            (click)="shiftData()!.openingBalance = amount">
+                             (click)="shiftData.openingBalance = amount">
                     </button>
                   }
                 </div>
@@ -133,11 +170,8 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
                         type="submit" 
                         label="Ouvrir la caisse" 
                         class="p-button-success flex-1"
-                        [disabled]="loading()"
+                        [disabled]="loading() || loadingRegisters()"
                         [loading]="loading()">
-                  @if (loading()) {
-                    <i class="pi pi-spin pi-spinner mr-2"></i>
-                  }
                 </button>
               </div>
             </form>
@@ -160,8 +194,8 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
               <div class="flex items-start">
                 <i class="pi pi-info-circle text-blue-500 mt-1 mr-3"></i>
                 <div>
-                  <div class="font-medium">Sélectionnez le bon magasin</div>
-                  <p class="text-sm text-gray-500">Assurez-vous d'ouvrir la caisse dans le bon établissement</p>
+                  <div class="font-medium">Sélectionnez la bonne caisse</div>
+                  <p class="text-sm text-gray-500">Chaque caissier doit ouvrir la caisse physique assignée</p>
                 </div>
               </div>
               
@@ -175,8 +209,8 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
             </div>
           </p-card>
 
-          <!-- Current Shift Info -->
-          @if (currentShift()) {
+           <!-- Current Shift Info -->
+          @if (currentShift(); as current) {
             <p-card header="Caisse en cours" class="border-orange-200">
               <div class="space-y-3">
                 <div class="flex items-center">
@@ -188,10 +222,13 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
                 </div>
                 
                 <div class="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
-                  <div class="text-sm text-gray-500">Session #{{ currentShift()?.shiftNumber }}</div>
-                  <div class="font-semibold">{{ currentShift()?.store?.name }}</div>
+                  <div class="text-sm text-gray-500">Session #{{ current.shiftNumber }}</div>
+                  <div class="font-semibold">{{ current.store?.name }}</div>
+                  @if (current.cashRegisterNumber) {
+                    <div class="text-sm text-blue-600">Caisse: {{ current.cashRegisterNumber }}</div>
+                  }
                   <div class="text-sm text-gray-500">
-                    Ouverte à {{ currentShift()?.startTime | date:'HH:mm' }}
+                    Ouverte à {{ current.startTime | date:'HH:mm' }}
                   </div>
                 </div>
                 
@@ -199,8 +236,37 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
                         label="Voir la caisse" 
                         icon="pi pi-external-link" 
                         class="p-button-outlined w-full"
-                        (click)="router.navigate(['/shift-reports', currentShift()?.shiftReportId])">
+                        (click)="router.navigate(['/shift-reports', current.shiftReportId])">
                 </button>
+              </div>
+            </p-card>
+          }
+
+          <!-- Selected Cash Register Info - NOUVEAU -->
+          @if (selectedCashRegister()) {
+            <p-card header="Caisse sélectionnée">
+              <div class="space-y-2">
+                <div class="flex justify-between">
+                  <span class="text-gray-500">Numéro:</span>
+                  <span class="font-semibold">{{ selectedCashRegister()?.registerNumber }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-gray-500">Nom:</span>
+                  <span>{{ selectedCashRegister()?.name }}</span>
+                </div>
+                @if (selectedCashRegister()?.location) {
+                  <div class="flex justify-between">
+                    <span class="text-gray-500">Emplacement:</span>
+                    <span>{{ selectedCashRegister()?.location }}</span>
+                  </div>
+                }
+                <div class="flex justify-between">
+                  <span class="text-gray-500">Statut:</span>
+                  <span [class.text-green-500]="selectedCashRegister()?.isActive"
+                        [class.text-red-500]="!selectedCashRegister()?.isActive">
+                    {{ selectedCashRegister()?.isActive ? 'Active' : 'Inactive' }}
+                  </span>
+                </div>
               </div>
             </p-card>
           }
@@ -212,23 +278,40 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
 export class ShiftReportOpenComponent implements OnInit {
   private shiftReportsService = inject(ShiftReportsService);
   private storesService = inject(StoresService);
+  private cashRegistersService = inject(CashRegistersService); // NOUVEAU
   private messageService = inject(MessageService);
   private authService = inject(AuthService);
   protected router = inject(Router);
 
-  shiftData = signal({
+  // Data model (non-signal for ngModel)
+  shiftData = {
     storeId: '',
+    cashRegisterId: '',
     openingBalance: 0,
     notes: ''
-  });
+  };
+
+  selectedStoreId = '';
+  selectedCashRegister = signal<CashRegister | null>(null);
 
   submitted = signal(false);
   loading = this.shiftReportsService.loading;
+  loadingRegisters = this.cashRegistersService.loading; // NOUVEAU
   currentShift = signal<any>(null);
 
-  quickAmounts = [50, 100, 200, 500];
+  quickAmounts = [50000, 100000, 200000, 500000]; // Montants en XAF
 
+  // Options pour les selects
   storeOptions = signal<any[]>([]);
+  cashRegisterOptions = computed(() => {
+    const registers = this.cashRegistersService.cashRegisters();
+    return registers.map(reg => ({
+      label: `${reg.registerNumber} - ${reg.name}`,
+      value: reg.cashRegisterId,
+      isActive: reg.isActive,
+      isOccupied: false // Sera mis à jour si nécessaire
+    }));
+  });
 
   ngOnInit() {
     this.loadStores();
@@ -239,12 +322,29 @@ export class ShiftReportOpenComponent implements OnInit {
     this.storesService.loadStores(1, 100).subscribe(() => {
       const stores = this.storesService.items();
       this.storeOptions.set(
-        stores.map(store => ({
+        stores.map((store: Store) => ({
           label: `${store.name} - ${store.city}`,
           value: store.storeId
         }))
       );
     });
+  }
+
+  // NOUVEAU : Charger les caisses quand le magasin change
+  onStoreChange(event: any) {
+    const storeId = event.value;
+    this.selectedStoreId = storeId;
+    this.shiftData.storeId = storeId;
+    this.shiftData.cashRegisterId = '';
+    this.selectedCashRegister.set(null);
+
+    if (storeId) {
+      this.loadCashRegisters(storeId);
+    }
+  }
+
+  loadCashRegisters(storeId: string) {
+    this.cashRegistersService.getActiveCashRegistersByStore(storeId).subscribe();
   }
 
   loadCurrentShift() {
@@ -261,20 +361,25 @@ export class ShiftReportOpenComponent implements OnInit {
     this.submitted.set(true);
 
     // Validation
-    if (!this.shiftData().storeId || !this.shiftData().openingBalance) {
+    if (!this.shiftData.storeId || !this.shiftData.cashRegisterId || !this.shiftData.openingBalance) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Erreur',
+        detail: 'Veuillez remplir tous les champs obligatoires'
+      });
       return;
     }
 
-    this.shiftReportsService.openShift(this.shiftData()).subscribe({
+    this.shiftReportsService.openShift(this.shiftData).subscribe({
       next: (shift) => {
         this.messageService.add({
           severity: 'success',
           summary: 'Succès',
-          detail: 'Caisse ouverte avec succès'
+          detail: `Caisse ${shift.cashRegisterNumber} ouverte avec succès`
         });
         this.router.navigate(['/shift-reports', shift.shiftReportId]);
       },
-      error: () => {
+      error: (err) => {
         // Error handled in service
       }
     });

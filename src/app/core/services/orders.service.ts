@@ -19,6 +19,11 @@ interface OrderFilters {
   search?: string;
 }
 
+interface CreateOrderWithPaymentRequest {
+  orderRequest: OrderRequest;
+  paymentRequest?: PaymentRequest;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -42,49 +47,7 @@ export class OrderService {
   processingOrders = signal<Order[]>([]);
   completedOrders = signal<Order[]>([]);
 
-  /**
-   * Create a new order
-   */
-  createOrder(request: OrderRequest): Observable<Order> {
-    this.loading.set(true);
-    return this.http.post<ApiResponse<Order>>(
-      this.apiConfig.getEndpoint('/orders'),
-      request
-    ).pipe(
-      map(response => response.data),
-      tap(order => {
-        this.orders.update(orders => [order, ...orders]);
-        this.total.update(t => t + 1);
-        this.loading.set(false);
-      }),
-      catchError(error => {
-        this.loading.set(false);
-        this.errorHandler.handleError(error, 'Création de la commande');
-        throw error;
-      })
-    );
-  }
 
-  /**
-   * Get order by ID
-   */
-  getOrderById(orderId: string): Observable<Order> {
-    this.loading.set(true);
-    return this.http.get<ApiResponse<Order>>(
-      this.apiConfig.getEndpoint(`/orders/${orderId}`)
-    ).pipe(
-      map(response => response.data),
-      tap(order => {
-        this.selectedOrder.set(order);
-        this.loading.set(false);
-      }),
-      catchError(error => {
-        this.loading.set(false);
-        this.errorHandler.handleError(error, 'Chargement de la commande');
-        throw error;
-      })
-    );
-  }
 
   /**
    * Load orders with pagination and filters
@@ -128,23 +91,6 @@ export class OrderService {
   }
 
   /**
-   * Add a payment to an existing order
-   */
-  addPayment(orderId: string, payment: PaymentRequest): Observable<Order> {
-    return this.http.post<ApiResponse<Order>>(
-      this.apiConfig.getEndpoint(`/orders/${orderId}/payments`),
-      payment
-    ).pipe(
-      map(response => response.data),
-      tap(updatedOrder => this.updateLocalOrder(updatedOrder)),
-      catchError(error => {
-        this.errorHandler.handleError(error, 'Ajout du paiement');
-        throw error;
-      })
-    );
-  }
-
-  /**
    * Process payment (backward compatibility for some components)
    */
   processPayment(orderId: string, paymentData: {
@@ -182,22 +128,7 @@ export class OrderService {
     );
   }
 
-  /**
-   * Complete order
-   */
-  completeOrder(orderId: string): Observable<Order> {
-    return this.http.post<ApiResponse<Order>>(
-      this.apiConfig.getEndpoint(`/orders/${orderId}/complete`),
-      {}
-    ).pipe(
-      map(response => response.data),
-      tap(updatedOrder => this.updateLocalOrder(updatedOrder)),
-      catchError(error => {
-        this.errorHandler.handleError(error, 'Finalisation de la commande');
-        throw error;
-      })
-    );
-  }
+
 
   markAsCompleted(orderId: string): Observable<Order> {
     return this.completeOrder(orderId);
@@ -206,20 +137,7 @@ export class OrderService {
   /**
    * Cancel order
    */
-  cancelOrder(orderId: string, reason: string | OrderStatus): Observable<Order> {
-    const cancelReason = typeof reason === 'string' ? reason : 'Annulée par l\'utilisateur';
-    return this.http.post<ApiResponse<Order>>(
-      this.apiConfig.getEndpoint(`/orders/${orderId}/cancel`),
-      { reason: cancelReason }
-    ).pipe(
-      map(response => response.data),
-      tap(updatedOrder => this.updateLocalOrder(updatedOrder)),
-      catchError(error => {
-        this.errorHandler.handleError(error, 'Annulation de la commande');
-        throw error;
-      })
-    );
-  }
+
 
   /**
    * Generate invoice
@@ -349,18 +267,7 @@ export class OrderService {
     );
   }
 
-  /**
-   * Helper to update local state when an order is modified
-   */
-  private updateLocalOrder(updatedOrder: Order) {
-    this.orders.update(orders => 
-      orders.map(order => order.orderId === updatedOrder.orderId ? updatedOrder : order)
-    );
-    if (this.selectedOrder()?.orderId === updatedOrder.orderId) {
-      this.selectedOrder.set(updatedOrder);
-    }
-    this.updateComputedSignals();
-  }
+
 
   /**
    * Get order statistics
@@ -402,4 +309,153 @@ export class OrderService {
     this.pageSize.set(newPageSize);
     this.loadOrders(1, newPageSize);
   }
+
+  ///NEW MWTHODS 
+
+    /**
+   * ✅ Create order WITHOUT payment
+   */
+  createOrder(request: OrderRequest): Observable<Order> {
+    this.loading.set(true);
+    return this.http.post<ApiResponse<Order>>(
+      this.apiConfig.getEndpoint('/orders'),
+      request  // No payment info here!
+    ).pipe(
+      map(response => response.data),
+      tap(order => {
+        this.orders.update(orders => [order, ...orders]);
+        this.total.update(t => t + 1);
+        this.loading.set(false);
+      }),
+      catchError(error => {
+        this.loading.set(false);
+        this.errorHandler.handleError(error, 'Création de la commande');
+        throw error;
+      })
+    );
+  }
+
+  /**
+   * ✅ Create order WITH initial payment (convenience method)
+   */
+  createOrderWithPayment(
+    orderRequest: OrderRequest, 
+    paymentRequest?: PaymentRequest
+  ): Observable<Order> {
+    this.loading.set(true);
+    
+    const request: CreateOrderWithPaymentRequest = {
+      orderRequest,
+      paymentRequest
+    };
+
+    return this.http.post<ApiResponse<Order>>(
+      this.apiConfig.getEndpoint('/orders/with-payment'),
+      request
+    ).pipe(
+      map(response => response.data),
+      tap(order => {
+        this.orders.update(orders => [order, ...orders]);
+        this.total.update(t => t + 1);
+        this.loading.set(false);
+      }),
+      catchError(error => {
+        this.loading.set(false);
+        this.errorHandler.handleError(error, 'Création de la commande avec paiement');
+        throw error;
+      })
+    );
+  }
+
+  /**
+   * ✅ Add payment to existing order
+   */
+  addPayment(orderId: string, payment: PaymentRequest): Observable<Order> {
+    this.loading.set(true);
+    return this.http.post<ApiResponse<Order>>(
+      this.apiConfig.getEndpoint(`/orders/${orderId}/payments`),
+      payment
+    ).pipe(
+      map(response => response.data),
+      tap(updatedOrder => {
+        this.updateLocalOrder(updatedOrder);
+        this.loading.set(false);
+      }),
+      catchError(error => {
+        this.loading.set(false);
+        this.errorHandler.handleError(error, 'Ajout du paiement');
+        throw error;
+      })
+    );
+  }
+
+  /**
+   * Complete order
+   */
+  completeOrder(orderId: string): Observable<Order> {
+    return this.http.patch<ApiResponse<Order>>(
+      this.apiConfig.getEndpoint(`/orders/${orderId}/complete`),
+      {}
+    ).pipe(
+      map(response => response.data),
+      tap(updatedOrder => this.updateLocalOrder(updatedOrder)),
+      catchError(error => {
+        this.errorHandler.handleError(error, 'Finalisation de la commande');
+        throw error;
+      })
+    );
+  }
+
+  /**
+   * Cancel order
+   */
+  cancelOrder(orderId: string): Observable<void> {
+    return this.http.delete<ApiResponse<void>>(
+      this.apiConfig.getEndpoint(`/orders/${orderId}`)
+    ).pipe(
+      map(response => response.data),
+      tap(() => {
+        this.orders.update(orders => orders.filter(o => o.orderId !== orderId));
+      }),
+      catchError(error => {
+        this.errorHandler.handleError(error, 'Annulation de la commande');
+        throw error;
+      })
+    );
+  }
+
+  /**
+   * Get order by ID
+   */
+  getOrderById(orderId: string): Observable<Order> {
+    this.loading.set(true);
+    return this.http.get<ApiResponse<Order>>(
+      this.apiConfig.getEndpoint(`/orders/${orderId}`)
+    ).pipe(
+      map(response => response.data),
+      tap(order => {
+        this.selectedOrder.set(order);
+        this.loading.set(false);
+      }),
+      catchError(error => {
+        this.loading.set(false);
+        this.errorHandler.handleError(error, 'Chargement de la commande');
+        throw error;
+      })
+    );
+  }
+
+ 
+
+
+  // Helper methods
+  private updateLocalOrder(updatedOrder: Order) {
+    this.orders.update(orders => 
+      orders.map(order => order.orderId === updatedOrder.orderId ? updatedOrder : order)
+    );
+    if (this.selectedOrder()?.orderId === updatedOrder.orderId) {
+      this.selectedOrder.set(updatedOrder);
+    }
+  }
+
 }

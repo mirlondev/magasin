@@ -47,9 +47,9 @@ export class ReceiptService {
   /**
    * Get receipt data (JSON) - pour l'aperçu
    */
-  getReceipt(orderId: string): Observable<ReceiptData> {
+  getReceipt(receiptId: string): Observable<ReceiptData> {
     return this.http.get<ApiResponse<ReceiptData>>(
-      this.apiConfig.getEndpoint(`/receipts/order/${orderId}`)
+      this.apiConfig.getEndpoint(`/receipts/${receiptId}`)
     ).pipe(map(r => r.data));
   }
 
@@ -57,14 +57,14 @@ export class ReceiptService {
    * Ouvre le PDF dans un nouvel onglet avec authentification
    * Solution: Télécharger le blob puis créer une URL objet
    */
-  openPdf(orderId: string): void {
+  openPdf(receiptId: string): void {
     const token = this.authService.getToken();
     const headers = new HttpHeaders({
       'Authorization': `Bearer ${token}`
     });
 
     this.http.get(
-      this.apiConfig.getEndpoint(`/receipts/order/${orderId}/pdf`),
+      this.apiConfig.getEndpoint(`/receipts/${receiptId}/pdf`),
       { 
         headers,
         responseType: 'blob' 
@@ -100,14 +100,14 @@ export class ReceiptService {
   /**
    * Télécharge le PDF (save as)
    */
-  downloadPdf(orderId: string, filename?: string): void {
+  downloadPdf(receiptId: string, filename?: string): void {
     const token = this.authService.getToken();
     const headers = new HttpHeaders({
       'Authorization': `Bearer ${token}`
     });
 
     this.http.get(
-      this.apiConfig.getEndpoint(`/receipts/order/${orderId}/pdf`),
+      this.apiConfig.getEndpoint(`/receipts/${receiptId}/pdf`),
       { 
         headers,
         responseType: 'blob' 
@@ -117,7 +117,7 @@ export class ReceiptService {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = filename || `ticket-${orderId}.pdf`;
+        a.download = filename || `ticket-${receiptId}.pdf`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -132,14 +132,14 @@ export class ReceiptService {
   /**
    * Télécharge les données thermiques (.bin)
    */
-  downloadThermal(orderId: string): void {
+  downloadThermal(receiptId: string): void {
     const token = this.authService.getToken();
     const headers = new HttpHeaders({
       'Authorization': `Bearer ${token}`
     });
 
     this.http.get(
-      this.apiConfig.getEndpoint(`/receipts/order/${orderId}/thermal`),
+      this.apiConfig.getEndpoint(`/receipts/${receiptId}/thermal`),
       { 
         headers,
         responseType: 'blob' 
@@ -149,7 +149,7 @@ export class ReceiptService {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `ticket-thermal-${orderId}.bin`;
+        a.download = `ticket-thermal-${receiptId}.bin`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -164,14 +164,14 @@ export class ReceiptService {
   /**
    * Imprime directement via le navigateur (ouvre PDF puis print dialog)
    */
-  printPdf(orderId: string): void {
+  printPdf(receiptId: string): void {
     const token = this.authService.getToken();
     const headers = new HttpHeaders({
       'Authorization': `Bearer ${token}`
     });
 
     this.http.get(
-      this.apiConfig.getEndpoint(`/receipts/order/${orderId}/pdf`),
+      this.apiConfig.getEndpoint(`/receipts/${receiptId}/pdf`),
       { 
         headers,
         responseType: 'blob' 

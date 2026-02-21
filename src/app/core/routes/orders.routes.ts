@@ -25,7 +25,7 @@ export const ORDERS_ROUTES: Routes = [
       
       // Sales Pages
       { path: 'pos-sale', component: PosSaleComponent ,
-       canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER] ), ShiftOpenGuard]
+       canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER] ), /*ShiftOpenGuard*/]
 
       },
       { path: 'credit-sale', component: CreditSaleComponent,

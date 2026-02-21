@@ -464,7 +464,7 @@ export class OrderListComponent implements OnInit {
   }
 
   cancelOrder(orderId: string) {
-    this.ordersService.cancelOrder(orderId, OrderStatus.CANCELLED).subscribe({
+    this.ordersService.cancelOrder(orderId).subscribe({
       next: () => {
         this.messageService.add({
           severity: 'success',

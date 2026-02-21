@@ -357,6 +357,36 @@ export class SidebarContentComponent {
         } 
       ]
     },
+
+       {
+    label: 'Caisse',
+    icon: 'pi pi-money-bill',
+    routerLink: '/shift-reports',
+    roles: [EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER, EmployeeRole.DEPOT_MANAGER, EmployeeRole.EMPLOYEE],
+    items: [
+      {
+        label: 'Sessions de Caisse',
+        icon: 'pi pi-clock',
+        routerLink: '/shift-reports' ,
+        roles: [EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER, EmployeeRole.DEPOT_MANAGER, EmployeeRole.EMPLOYEE] 
+      },
+      {
+        label: 'Ouvrir une Caisse',
+        icon: 'pi pi-lock-open',
+        routerLink: '/shift-reports/new',
+        roles: [EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER, EmployeeRole.DEPOT_MANAGER, EmployeeRole.EMPLOYEE]
+      },
+      {
+        label: 'Gestion des Caisses',
+        icon: 'pi pi-desktop',
+        routerLink: '/shift-reports/cash-registers',
+        roles: [EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN]
+      }
+    ]
+  },
+    
+      
+    
     {
       label: 'Clients',
       icon: 'pi-users',
@@ -375,12 +405,7 @@ export class SidebarContentComponent {
       routerLink: '/employees',
       roles: [EmployeeRole.ADMIN]
     },
-        {
-      label: 'Gestion de sessions',
-      icon: 'pi-users',
-      routerLink: '/shift-reports',
-      roles: [EmployeeRole.ADMIN]
-    },
+
     {
       label: 'Paramètres',
       icon: 'pi-cog',

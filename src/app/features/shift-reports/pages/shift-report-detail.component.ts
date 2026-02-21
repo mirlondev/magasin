@@ -14,7 +14,7 @@ import { TextareaModule } from "primeng/textarea";
 import { TableModule } from "primeng/table";
 import { TagModule } from "primeng/tag";
 import { ToastModule } from "primeng/toast";
-import { EmployeeRole, ShiftStatus } from "../../../core/models";
+import { EmployeeRole, ShiftStatus, ShiftReportDetail } from "../../../core/models";
 import { AuthService } from "../../../core/services/auth.service";
 import { ShiftReportsService } from "../../../core/services/shift-reports.service";
 import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
@@ -58,6 +58,9 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
               }
               @if (shift()?.endTime) {
                 • Fermée le {{ shift()?.endTime | date:'dd/MM/yyyy à HH:mm' }}
+              }
+              @if (shift()?.cashRegisterNumber) {
+                • Caisse {{ shift()?.cashRegisterNumber }}
               }
             </p>
           </div>
@@ -104,6 +107,42 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <!-- Left Column - Shift Details -->
           <div class="lg:col-span-2 space-y-6">
+            
+            <!-- NOUVEAU : Payment Methods Breakdown -->
+            @if (shiftDetail()) {
+              <p-card header="Répartition des paiements">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div class="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                    <div class="text-500 font-medium text-sm">Espèces</div>
+                    <div class="text-900 text-xl font-bold text-green-600">
+                      {{ shiftDetail()!.cashTotal | xaf }}
+                    </div>
+                  </div>
+                  
+                  <div class="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <div class="text-500 font-medium text-sm">Mobile Money</div>
+                    <div class="text-900 text-xl font-bold text-blue-600">
+                      {{ shiftDetail()!.mobileTotal | xaf }}
+                    </div>
+                  </div>
+                  
+                  <div class="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                    <div class="text-500 font-medium text-sm">Carte Bancaire</div>
+                    <div class="text-900 text-xl font-bold text-purple-600">
+                      {{ shiftDetail()!.cardTotal | xaf }}
+                    </div>
+                  </div>
+                  
+                  <div class="text-center p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                    <div class="text-500 font-medium text-sm">Crédit</div>
+                    <div class="text-900 text-xl font-bold text-orange-600">
+                      {{ shiftDetail()!.creditTotal | xaf }}
+                    </div>
+                  </div>
+                </div>
+              </p-card>
+            }
+
             <!-- Financial Summary -->
             <p-card header="Résumé financier">
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -113,7 +152,7 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
                   <div class="space-y-3">
                     <div class="flex justify-between">
                       <span class="text-gray-600">Solde d'ouverture:</span>
-                      <span class="font-semibold">{{ shift()!.openingBalance | xaf}}</span>
+                      <span class="font-semibold">{{ shift()!.openingBalance | xaf }}</span>
                     </div>
                     
                     <div class="flex justify-between">
@@ -193,41 +232,6 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
                 </div>
               </div>
             </p-card>
-
-            <!-- Recent Transactions -->
-            <p-card header="Transactions récentes">
-              <div class="overflow-x-auto">
-                <table class="w-full">
-                  <thead>
-                    <tr class="text-left text-sm text-gray-500 dark:text-gray-400 border-b">
-                      <th class="pb-3">Heure</th>
-                      <th class="pb-3">Type</th>
-                      <th class="pb-3">Description</th>
-                      <th class="pb-3">Montant</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <!-- This would be populated with actual transaction data -->
-                    <tr class="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                      <td class="py-3">14:30</td>
-                      <td class="py-3">
-                        <p-tag value="Vente" severity="success" />
-                      </td>
-                      <td class="py-3">Commande #ORD-1234</td>
-                      <td class="py-3 font-semibold text-green-600">+125.50 xaf</td>
-                    </tr>
-                    <tr class="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                      <td class="py-3">15:45</td>
-                      <td class="py-3">
-                        <p-tag value="Remboursement" severity="danger" />
-                      </td>
-                      <td class="py-3">Remboursement #REF-5678</td>
-                      <td class="py-3 font-semibold text-red-600">-45.00€</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </p-card>
           </div>
 
           <!-- Right Column - Shift Info & Actions -->
@@ -248,10 +252,21 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
                   <div class="font-medium mt-1">{{ shift()!.cashierName }}</div>
                 </div>
                 
+                <!-- NOUVEAU : Caisse Info -->
+                <div>
+                  <div class="text-sm text-gray-500">Caisse</div>
+                  <div class="font-medium mt-1">
+                    @if (shift()?.cashRegisterNumber) {
+                      {{ shift()?.cashRegisterNumber }} - {{ shift()?.cashRegisterName }}
+                    } @else {
+                      <span class="text-gray-400">Non assignée</span>
+                    }
+                  </div>
+                </div>
+                
                 <div>
                   <div class="text-sm text-gray-500">Magasin</div>
                   <div class="font-medium mt-1">{{ shift()?.storeName }}</div>
-                  <div class="text-sm text-gray-500">{{ shift()?.storeAddress }}</div>
                 </div>
                 
                 <div>
@@ -277,7 +292,7 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
                     <div class="flex gap-2">
                       <p-inputNumber [(ngModel)]="addCashAmount" 
                                      [min]="0" 
-                                     [step]="10"
+                                     [step]="1000"
                                      placeholder="Montant"
                                      class="flex-1" />
                       <button pButton 
@@ -296,7 +311,7 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
                       <p-inputNumber [(ngModel)]="removeCashAmount" 
                                      [min]="0" 
                                      [max]="shift()!.actualBalance"
-                                     [step]="10"
+                                     [step]="1000"
                                      placeholder="Montant"
                                      class="flex-1" />
                       <button pButton 
@@ -306,21 +321,6 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
                               [disabled]="!removeCashAmount || removeCashAmount <= 0">
                       </button>
                     </div>
-                  </div>
-                  
-                  <!-- Update Notes -->
-                  <div class="p-3 border rounded-lg">
-                    <h4 class="font-semibold mb-2">Notes</h4>
-                    <textarea pInputTextarea [(ngModel)]="notes" 
-                                     [rows]="3" 
-                                     placeholder="Ajouter des notes..."
-                                     class="w-full mb-2"></textarea>
-                    <button pButton 
-                            label="Mettre à jour" 
-                            class="p-button-outlined w-full"
-                            (click)="updateNotes()"
-                            [disabled]="notes === shift()!.notes">
-                    </button>
                   </div>
                 </div>
               </p-card>
@@ -334,7 +334,10 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
                   <div>
                     <div class="font-medium">Caisse ouverte</div>
                     <div class="text-sm text-gray-500">{{ shift()!.startTime | date:'dd/MM/yyyy HH:mm' }}</div>
-                    <div class="text-sm text-gray-500">Solde d'ouverture: {{ shift()!.openingBalance | xaf }}</div>
+                    <div class="text-sm text-gray-500">Solde: {{ shift()!.openingBalance | xaf }}</div>
+                    @if (shift()?.cashRegisterNumber) {
+                      <div class="text-sm text-blue-600">Caisse: {{ shift()?.cashRegisterNumber }}</div>
+                    }
                   </div>
                 </div>
                 
@@ -384,21 +387,27 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
                 [modal]="true" 
                 [style]="{ width: '500px' }">
         <div class="space-y-4">
+          <div class="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg mb-4">
+            <div class="text-sm text-blue-800 dark:text-blue-200">
+              <strong>Solde attendu:</strong> {{ shift()?.expectedBalance | xaf }}<br>
+              <small>Si vous ne saisissez pas de solde réel, le solde attendu sera utilisé.</small>
+            </div>
+          </div>
+          
           <div>
-            <label class="block text-sm font-medium mb-2">Solde de fermeture *</label>
+            <label class="block text-sm font-medium mb-2">Solde réel compté (optionnel)</label>
             <p-inputNumber [(ngModel)]="closingBalance" 
                            [min]="0" 
-                           [step]="0.01"
-                           required
+                           [step]="1000"
                            class="w-full"
                            placeholder="Montant compté en caisse" />
           </div>
           
           <div>
-            <label class="block text-sm font-medium mb-2">Notes</label>
-            <textarea pInputTextarea [(ngModel)]="closingNotes" 
+            <label class="block text-sm font-medium mb-2">Notes de fermeture</label>
+            <textarea pTextarea [(ngModel)]="closingNotes" 
                              [rows]="3" 
-                             placeholder="Notes de fermeture..."
+                             placeholder="Notes..."
                              class="w-full"></textarea>
           </div>
         </div>
@@ -413,8 +422,7 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
           <button pButton 
                   label="Fermer la caisse" 
                   class="p-button-danger"
-                  (click)="closeShift()"
-                  [disabled]="!closingBalance">
+                  (click)="closeShift()">
           </button>
         </ng-template>
       </p-dialog>
@@ -432,31 +440,36 @@ export class ShiftReportDetailComponent implements OnInit {
 
   shiftId = signal<string>('');
   shift = this.shiftReportsService.selectedShiftReport;
+  shiftDetail = this.shiftReportsService.selectedShiftDetail; // NOUVEAU
   loading = this.shiftReportsService.loading;
 
   // Dialog states
   showCloseDialog = false;
-  closingBalance: number = 0;
+  closingBalance: number | null = null;  // MODIFIÉ : null par défaut
   closingNotes = '';
 
   // Cash operations
   addCashAmount: number = 0;
   removeCashAmount: number = 0;
-  notes = '';
 
   ngOnInit() {
     this.route.params.subscribe(params => {
       this.shiftId.set(params['id']);
       this.loadShift();
+      this.loadShiftDetail(); // NOUVEAU
     });
   }
 
   loadShift() {
     if (this.shiftId()) {
-      this.shiftReportsService.getShiftReportById(this.shiftId()).subscribe(shift => {
-        this.notes = shift?.notes || '';
-        console.log(this.shift());
-      });
+      this.shiftReportsService.getShiftReportById(this.shiftId()).subscribe();
+    }
+  }
+
+  // NOUVEAU : Charger les détails avec répartition des paiements
+  loadShiftDetail() {
+    if (this.shiftId()) {
+      this.shiftReportsService.getShiftDetail(this.shiftId()).subscribe();
     }
   }
 
@@ -526,7 +539,6 @@ export class ShiftReportDetailComponent implements OnInit {
   }
 
   printShiftReport() {
-    // Implement print functionality
     this.messageService.add({
       severity: 'info',
       summary: 'Impression',
@@ -536,13 +548,14 @@ export class ShiftReportDetailComponent implements OnInit {
 
   confirmCloseShift() {
     this.showCloseDialog = true;
-    this.closingBalance = this.shift()?.actualBalance || 0;
+    this.closingBalance = null; // Reset
   }
 
   closeShift() {
     if (this.shiftId()) {
+      // MODIFIÉ : Utilisation de CloseShiftRequest
       const closingData = {
-        closingBalance: this.closingBalance,
+        actualBalance: this.closingBalance || undefined, // Si null, le backend utilisera expectedBalance
         notes: this.closingNotes
       };
 
@@ -555,6 +568,7 @@ export class ShiftReportDetailComponent implements OnInit {
           });
           this.showCloseDialog = false;
           this.loadShift();
+          this.loadShiftDetail();
         }
       });
     }
@@ -596,49 +610,20 @@ export class ShiftReportDetailComponent implements OnInit {
   }
 
   addCash() {
-    if (this.addCashAmount > 0 && this.shiftId()) {
-      this.shiftReportsService.addCash(this.shiftId(), this.addCashAmount, 'Ajout manuel').subscribe({
-        next: () => {
-          this.messageService.add({
-            severity: 'success',
-            summary: 'Succès',
-            detail: 'Fonds ajoutés avec succès'
-          });
-          this.addCashAmount = 0;
-          this.loadShift();
-        }
-      });
-    }
+    // À implémenter selon votre API
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Info',
+      detail: 'Fonctionnalité à implémenter'
+    });
   }
 
   removeCash() {
-    if (this.removeCashAmount > 0 && this.shiftId()) {
-      this.shiftReportsService.removeCash(this.shiftId(), this.removeCashAmount, 'Retrait manuel').subscribe({
-        next: () => {
-          this.messageService.add({
-            severity: 'success',
-            summary: 'Succès',
-            detail: 'Fonds retirés avec succès'
-          });
-          this.removeCashAmount = 0;
-          this.loadShift();
-        }
-      });
-    }
-  }
-
-  updateNotes() {
-    if (this.shiftId()) {
-      this.shiftReportsService.updateNotes(this.shiftId(), this.notes).subscribe({
-        next: () => {
-          this.messageService.add({
-            severity: 'success',
-            summary: 'Succès',
-            detail: 'Notes mises à jour avec succès'
-          });
-          this.loadShift();
-        }
-      });
-    }
+    // À implémenter selon votre API
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Info',
+      detail: 'Fonctionnalité à implémenter'
+    });
   }
 }

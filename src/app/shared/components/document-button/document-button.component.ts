@@ -1,5 +1,5 @@
 // components/document-button/document-button.component.ts
-import { Component, computed, inject, Input, input, signal } from '@angular/core';
+import { Component, computed, inject, input, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
 import { MenuModule } from 'primeng/menu';
@@ -7,10 +7,12 @@ import { MenuItem } from 'primeng/api';
 import { DialogModule } from 'primeng/dialog';
 import { RadioButtonModule } from 'primeng/radiobutton';
 import { FormsModule } from '@angular/forms';
-import { DocumentService } from '../../../core/services/document.service';
-import { Order, OrderType, DocumentType } from '../../../core/models';
 import { MessageService } from 'primeng/api';
 import { TooltipModule } from 'primeng/tooltip';
+
+import { Order, OrderType, DocumentType } from '../../../core/models';
+import { InvoiceService } from '../../../core/services/invoice.service';
+import { ReceiptService } from '../../../core/services/receipt.service';
 
 @Component({
   selector: 'app-document-button',
@@ -47,13 +49,12 @@ import { TooltipModule } from 'primeng/tooltip';
       </button>
     </div>
     
-<!-- <p-menu #menu [model]="menuItems()" [popup]="true"></p-menu> -->
-<p-menu 
-  #menu 
-  [model]="menuItems()" 
-  [popup]="true"
-  appendTo="body">
-</p-menu>
+    <p-menu 
+      #menu 
+      [model]="menuItems()" 
+      [popup]="true"
+      appendTo="body">
+    </p-menu>
 
     <!-- Dialog choix manuel -->
     <p-dialog 
@@ -84,20 +85,21 @@ import { TooltipModule } from 'primeng/tooltip';
   `
 })
 export class DocumentButtonComponent {
-  private documentService = inject(DocumentService);
+  private invoiceService = inject(InvoiceService);
+  private receiptService = inject(ReceiptService);
   private messageService = inject(MessageService);
 
-order = input.required<Order>();
-    loading = signal(false);
+  order = input.required<Order>();
+  loading = signal(false);
   showDialog = signal(false);
   selectedType: DocumentType = DocumentType.TICKET;
 
-  // Détermine le document principal recommandé
-  mainDocType = () => this.documentService.getDocumentTypeForOrder(this.order());
+  // ─── Document type determination ─────────────────────────────────────────
+  mainDocType = () => this.getDocumentTypeForOrder(this.order());
   
-  mainIcon = () => this.documentService.getDocumentIcon(this.mainDocType());
+  mainIcon = () => this.getDocumentIcon(this.mainDocType());
   
-  mainTooltip = () => `Générer ${this.documentService.getDocumentLabel(this.mainDocType())}`;
+  mainTooltip = () => `Générer ${this.getDocumentLabel(this.mainDocType())}`;
   
   mainButtonClass = () => {
     const type = this.mainDocType();
@@ -161,62 +163,75 @@ order = input.required<Order>();
     return docs;
   };
 
-menuItems = computed<MenuItem[]>(() => [
-  {
-    label: 'Ouvrir (aperçu)',
-    icon: 'pi pi-eye',
-    command: () => this.openDocument()
-  },
-  { separator: true },
-  {
-    label: 'Télécharger PDF',
-    icon: 'pi pi-download',
-    command: () => this.downloadPdf()
-  },
-  {
-    label: 'Imprimante thermique',
-    icon: 'pi pi-print',
-    command: () => this.downloadThermal(),
-    disabled: !this.canUseThermal()
-  },
-  { separator: true },
-  {
-    label: 'Autre type de document...',
-    icon: 'pi pi-list',
-    command: () => this.openManualSelection()
-  }
-]);
+  menuItems = computed<MenuItem[]>(() => [
+    {
+      label: 'Ouvrir (aperçu)',
+      icon: 'pi pi-eye',
+      command: () => this.openDocument()
+    },
+    { separator: true },
+    {
+      label: 'Télécharger PDF',
+      icon: 'pi pi-download',
+      command: () => this.downloadPdf()
+    },
+    {
+      label: 'Imprimante thermique',
+      icon: 'pi pi-print',
+      command: () => this.downloadThermal(),
+      disabled: !this.canUseThermal()
+    },
+    { separator: true },
+    {
+      label: 'Autre type de document...',
+      icon: 'pi pi-list',
+      command: () => this.openManualSelection()
+    }
+  ]);
 
+  canUseThermal = computed(() => {
+    const order = this.order();
+    return order.orderType === OrderType.POS_SALE || 
+           (!order.orderType && order.paymentStatus === 'PAID');
+  });
 
-canUseThermal = computed(() => {
-  const order = this.order();
-  return order.orderType === OrderType.POS_SALE || 
-         (!order.orderType && order.paymentStatus === 'PAID');
-});
+  // ─── Actions ────────────────────────────────────────────────────────────
 
-
-  // Actions
   generateMainDocument() {
     this.loading.set(true);
     const type = this.mainDocType();
     
-    this.documentService.generateDocument(this.order().orderId, type, 'pdf');
+    this.generateDocument(this.order().orderId, type, 'pdf');
     
     this.messageService.add({
       severity: 'success',
       summary: 'Document généré',
-      detail: `${this.documentService.getDocumentLabel(type)} téléchargé`
+      detail: `${this.getDocumentLabel(type)} téléchargé`
     });
     
     setTimeout(() => this.loading.set(false), 500);
   }
 
   openDocument() {
-    this.documentService.openDocument(this.order().orderId, this.mainDocType());
+    const type = this.mainDocType();
+    const orderId = this.order().orderId;
+    
+    if (type === DocumentType.INVOICE || type === DocumentType.PROFORMA) {
+      this.invoiceService.openPdfInTab(orderId); // invoiceId? We use orderId
+    } else {
+      this.receiptService.openPdf(orderId); // receiptId? Uses orderId endpoint
+    }
   }
 
   downloadPdf() {
-    this.documentService.generateDocument(this.order().orderId, this.mainDocType(), 'pdf');
+    const type = this.mainDocType();
+    const orderId = this.order().orderId;
+    
+    if (type === DocumentType.INVOICE || type === DocumentType.PROFORMA) {
+      this.invoiceService.savePdfToDisk(orderId, `${type}-${orderId}.pdf`);
+    } else {
+      this.receiptService.downloadPdf(orderId, `${type}-${orderId}.pdf`);
+    }
   }
 
   downloadThermal() {
@@ -228,7 +243,8 @@ canUseThermal = computed(() => {
       });
       return;
     }
-    this.documentService.generateDocument(this.order().orderId, DocumentType.TICKET, 'thermal');
+    // thermal only available for tickets/receipts
+    this.receiptService.downloadThermal(this.order().orderId);
   }
 
   openManualSelection() {
@@ -240,18 +256,71 @@ canUseThermal = computed(() => {
     this.showDialog.set(false);
     this.loading.set(true);
     
-    this.documentService.generateDocument(
-      this.order().orderId, 
-      this.selectedType, 
-      'pdf'
-    );
+    this.generateDocument(this.order().orderId, this.selectedType, 'pdf');
     
     this.messageService.add({
       severity: 'success',
       summary: 'Document généré',
-      detail: `${this.documentService.getDocumentLabel(this.selectedType)} téléchargé`
+      detail: `${this.getDocumentLabel(this.selectedType)} téléchargé`
     });
     
     setTimeout(() => this.loading.set(false), 500);
+  }
+
+  // ─── Private helpers ────────────────────────────────────────────────────
+
+  private getDocumentTypeForOrder(order: Order): DocumentType {
+    if (order.orderType === OrderType.POS_SALE || !order.orderType) {
+      return DocumentType.TICKET;
+    }
+    if (order.orderType === OrderType.CREDIT_SALE) {
+      return DocumentType.INVOICE;
+    }
+    if (order.orderType === OrderType.PROFORMA) {
+      return DocumentType.PROFORMA;
+    }
+    return DocumentType.RECEIPT;
+  }
+
+  private getDocumentIcon(type: DocumentType): string {
+    switch (type) {
+      case DocumentType.INVOICE: return 'pi pi-file-pdf';
+      case DocumentType.PROFORMA: return 'pi pi-file';
+      case DocumentType.TICKET: return 'pi pi-receipt';
+      case DocumentType.RECEIPT: return 'pi pi-print';
+      default: return 'pi pi-file';
+    }
+  }
+
+  private getDocumentLabel(type: DocumentType): string {
+    switch (type) {
+      case DocumentType.INVOICE: return 'Facture';
+      case DocumentType.PROFORMA: return 'Proforma';
+      case DocumentType.TICKET: return 'Ticket de caisse';
+      case DocumentType.RECEIPT: return 'Reçu simple';
+      default: return 'Document';
+    }
+  }
+
+  private generateDocument(orderId: string, type: DocumentType, output: 'pdf' | 'thermal'): void {
+    if (output === 'thermal') {
+      if (type === DocumentType.TICKET || type === DocumentType.RECEIPT) {
+        this.receiptService.downloadThermal(orderId);
+      } else {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Erreur',
+          detail: 'Impression thermique non disponible pour ce type de document'
+        });
+      }
+      return;
+    }
+
+    // PDF output
+    if (type === DocumentType.INVOICE || type === DocumentType.PROFORMA) {
+      this.invoiceService.savePdfToDisk(orderId, `${type}-${orderId}.pdf`);
+    } else {
+      this.receiptService.downloadPdf(orderId, `${type}-${orderId}.pdf`);
+    }
   }
 }

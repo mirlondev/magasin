@@ -15,10 +15,10 @@ import { ToolbarModule } from "primeng/toolbar";
 import { EmployeeRole, ShiftReport, ShiftStatus } from "../../../core/models";
 import { AuthService } from "../../../core/services/auth.service";
 import { ShiftReportsService } from "../../../core/services/shift-reports.service";
-
-  import { DatePickerModule } from 'primeng/datepicker';
-  import { SelectModule } from 'primeng/select';
+import { DatePickerModule } from 'primeng/datepicker';
+import { SelectModule } from 'primeng/select';
 import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
+
 @Component({
   selector: 'app-shift-report-list',
   standalone: true,
@@ -54,6 +54,7 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
                 <h3 class="font-bold text-lg">Caisse ouverte</h3>
                 <p class="text-gray-600 dark:text-gray-400">
                   Session #{{ currentShift()?.shiftNumber }} • 
+                  Caisse {{ currentShift()?.cashRegisterNumber || 'N/A' }} •
                   Ouverte à {{ currentShift()?.startTime | date:'HH:mm' }} • 
                   Solde: {{ currentShift()?.actualBalance | xaf }}
                 </p>
@@ -104,7 +105,7 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
 
       <!-- Filters -->
       <div class="p-4 surface-ground rounded mb-4">
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
           <div>
             <label class="block text-sm font-medium mb-2">Statut</label>
             <p-select [options]="statusOptions" 
@@ -126,6 +127,25 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
           </div>
           
           <div>
+            <label class="block text-sm font-medium mb-2">Magasin</label>
+            <input pInputText 
+                   [(ngModel)]="filters().store"
+                   (ngModelChange)="onFilterChange()"
+                   placeholder="Nom du magasin..." 
+                   class="w-full" />
+          </div>
+          
+          <!-- NOUVEAU : Filtre par caisse -->
+          <div>
+            <label class="block text-sm font-medium mb-2">Caisse</label>
+            <input pInputText 
+                   [(ngModel)]="filters().cashRegister"
+                   (ngModelChange)="onFilterChange()"
+                   placeholder="Numéro de caisse..." 
+                   class="w-full" />
+          </div>
+          
+          <div>
             <label class="block text-sm font-medium mb-2">Période</label>
             <p-datepicker [(ngModel)]="dateRange"
                        (onSelect)="onDateRangeChange()"
@@ -135,15 +155,6 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
                        placeholder="Sélectionner une période"
                        class="w-full">
             </p-datepicker>
-          </div>
-          
-          <div>
-            <label class="block text-sm font-medium mb-2">Magasin</label>
-            <input pInputText 
-                   [(ngModel)]="filters().store"
-                   (ngModelChange)="onFilterChange()"
-                   placeholder="Nom du magasin..." 
-                   class="w-full" />
           </div>
           
           <div class="flex items-end">
@@ -198,6 +209,7 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
             <th pSortableColumn="shiftNumber">N° Session <p-sortIcon field="shiftNumber" /></th>
             <th pSortableColumn="cashier.username">Caissier <p-sortIcon field="cashier.username" /></th>
             <th pSortableColumn="store.name">Magasin <p-sortIcon field="store.name" /></th>
+            <th>Caisse</th> <!-- NOUVEAU -->
             <th pSortableColumn="status">Statut <p-sortIcon field="status" /></th>
             <th pSortableColumn="totalSales">Ventes <p-sortIcon field="totalSales" /></th>
             <th pSortableColumn="startTime">Ouverture <p-sortIcon field="startTime" /></th>
@@ -216,6 +228,16 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
             </td>
             <td>{{ shift.cashier?.username || 'N/A' }}</td>
             <td>{{ shift.store?.name || 'N/A' }}</td>
+            <!-- NOUVEAU : Affichage caisse -->
+            <td>
+              @if (shift.cashRegisterNumber) {
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  {{ shift.cashRegisterNumber }}
+                </span>
+              } @else {
+                <span class="text-gray-400">-</span>
+              }
+            </td>
             <td>
               <p-tag [value]="getStatusLabel(shift.status)" 
                      [severity]="getStatusSeverity(shift.status)" />
@@ -277,7 +299,7 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
         
         <ng-template pTemplate="emptymessage">
           <tr>
-            <td colspan="8" class="text-center p-6">
+            <td colspan="9" class="text-center p-6">
               <div class="text-500">
                 @if (loading()) {
                   <p class="text-lg">Chargement en cours...</p>
@@ -314,6 +336,7 @@ export class ShiftReportListComponent implements OnInit {
     status: null as ShiftStatus | null,
     cashier: '',
     store: '',
+    cashRegister: '',  // NOUVEAU
     startDate: null as string | null,
     endDate: null as string | null
   });
@@ -335,7 +358,7 @@ export class ShiftReportListComponent implements OnInit {
 
   // Computed
   totalSales = computed(() => {
-    return this.shiftReports().reduce((sum, shift) => sum + shift.totalSales, 0);
+    return this.shiftReports().reduce((sum, shift) => sum + (shift.totalSales || 0), 0);
   });
 
   // Permission checks
@@ -348,7 +371,6 @@ export class ShiftReportListComponent implements OnInit {
       return false;
     }
     
-    // Users can only manage their own shifts unless they're admin/store admin
     const currentUser = this.authService.currentUser();
     const isOwner = shift.cashier?.userId === currentUser?.userId;
     const isAdmin = this.authService.hasRole([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN]);
@@ -385,6 +407,7 @@ export class ShiftReportListComponent implements OnInit {
     if (currentFilters.status) filters.status = currentFilters.status;
     if (currentFilters.cashier) filters.cashierName = currentFilters.cashier;
     if (currentFilters.store) filters.storeName = currentFilters.store;
+    if (currentFilters.cashRegister) filters.cashRegisterNumber = currentFilters.cashRegister;  // NOUVEAU
     if (currentFilters.startDate) filters.startDate = currentFilters.startDate;
     if (currentFilters.endDate) filters.endDate = currentFilters.endDate;
 
@@ -418,6 +441,7 @@ export class ShiftReportListComponent implements OnInit {
       status: null,
       cashier: '',
       store: '',
+      cashRegister: '',  // NOUVEAU
       startDate: null,
       endDate: null
     });
@@ -440,7 +464,7 @@ export class ShiftReportListComponent implements OnInit {
 
   confirmCloseShift(shift: ShiftReport) {
     this.confirmationService.confirm({
-      message: `Êtes-vous sûr de vouloir fermer la session ${shift.shiftNumber} ?`,
+      message: `Êtes-vous sûr de vouloir fermer la session ${shift.shiftNumber} (Caisse ${shift.cashRegisterNumber || 'N/A'}) ?`,
       header: 'Confirmation de fermeture',
       icon: 'pi pi-exclamation-triangle',
       acceptLabel: 'Oui, fermer',
@@ -450,8 +474,8 @@ export class ShiftReportListComponent implements OnInit {
   }
 
   closeShift(shiftId: string) {
+    // NOUVEAU : Utilisation du CloseShiftRequest avec actualBalance optionnel
     const closingData = {
-      closingBalance: 0, // This should come from a form
       notes: 'Fermeture manuelle'
     };
 
@@ -506,7 +530,6 @@ export class ShiftReportListComponent implements OnInit {
   }
 
   printShiftReport(shift: ShiftReport) {
-    // Implement print functionality
     this.messageService.add({
       severity: 'info',
       summary: 'Impression',
@@ -515,7 +538,6 @@ export class ShiftReportListComponent implements OnInit {
   }
 
   exportShiftReports() {
-    // Implement export functionality
     this.messageService.add({
       severity: 'info',
       summary: 'Export',

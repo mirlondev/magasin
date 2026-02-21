@@ -6,6 +6,7 @@ import { ShiftReportOpenComponent } from "../../features/shift-reports/pages/shi
 import { roleGuard } from "../guards/role-guard";
 import { ShiftOpenGuard } from "../guards/shift-open.guard";
 import { noShiftOpenGuard } from "../guards/no-shift-open.guard";
+import { CashRegisterListComponent } from "../../features/shift-reports/pages/cash-register-list.component";
 
 export const SHIFT_REPORTS_ROUTES: Routes = [
   {
@@ -22,5 +23,10 @@ export const SHIFT_REPORTS_ROUTES: Routes = [
     path: ':id',
     component: ShiftReportDetailComponent,
     canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER])]
+  },
+  {
+    path: 'cash-registers',
+    component: CashRegisterListComponent,
+    canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN])]
   }
 ];

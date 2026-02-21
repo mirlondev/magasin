@@ -460,7 +460,7 @@ export class OrderDetailComponent implements OnInit {
 
   cancelOrder() {
     if (this.orderId()) {
-      this.ordersService.cancelOrder(this.orderId(), 'Annulée par l\'utilisateur').subscribe({
+      this.ordersService.cancelOrder(this.orderId()).subscribe({
         next: () => {
           this.messageService.add({
             severity: 'success',

@@ -1,5 +1,79 @@
 import { HttpParams } from "@angular/common/http";
+// Ajouter ces interfaces à votre fichier models.ts existant
 
+export interface CashRegister {
+  cashRegisterId: string;
+  registerNumber: string;  // ex: "Caisse-01"
+  name: string;
+  storeId: string;
+  storeName?: string;
+  isActive: boolean;
+  location?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface ShiftReport {
+  shiftReportId: string;
+  shiftNumber: string;
+  status: ShiftStatus;
+  open: boolean;
+  closed: boolean;
+  totalTransactions: number;
+  openingBalance: number;
+  totalSales: number;
+  totalRefunds: number;
+  netSales: number;
+  expectedBalance: number;
+  actualBalance: number;
+  closingBalance: number;
+  discrepancy: number;
+  notes: string;
+  cashierId: string;
+  cashierName: string;
+  storeAddress?: string;
+  storeId: string;
+  storeName: string;
+
+  // NOUVEAUX CHAMPS - Caisse
+  cashRegisterId?: string;
+  cashRegisterNumber?: string;
+  cashRegisterName?: string;
+
+  startTime: string;
+  endTime?: string;
+  createdAt: string;
+  updatedAt: string;
+  store: Store;
+  cashier: User;
+}
+
+export interface ShiftReportRequest {
+  storeId: string;
+  cashRegisterId: string;  // AJOUTÉ - obligatoire
+  openingBalance: number;
+  notes?: string;
+}
+
+export interface CloseShiftRequest {
+  actualBalance?: number;   // Optionnel - si null, utilise expectedBalance
+  notes?: string;
+}
+
+export interface ShiftReportDetail extends ShiftReport {
+  cashTotal: number;
+  mobileTotal: number;
+  cardTotal: number;
+  creditTotal: number;
+  otherPayments: Record<string, number>;
+}
+
+export interface CashRegisterRequest {
+  registerNumber: string;
+  name: string;
+  storeId: string;
+  location?: string;
+}
 // Enums
 export enum EmployeeRole {
   ADMIN = 'ADMIN',
@@ -117,8 +191,9 @@ export interface OrderRequest {
   taxRate?: number;
   isTaxable?: boolean;
   notes?: string;
+  orderType?: OrderType;
 }
-
+;
 export interface OrderItemRequest {
   productId: string;
   quantity: number;
@@ -392,34 +467,34 @@ export interface Refund {
   cashier: User;
 }
 
-export interface ShiftReport {
-  shiftReportId: string;
-  shiftNumber: string;
-  status: ShiftStatus;
-  open: boolean;
-  closed: boolean;
-  totalTransactions: number;
-  openingBalance: number;
-  totalSales: number;
-  totalRefunds: number;
-  netSales: number;
-  expectedBalance: number;
-  actualBalance: number;
-  closingBalance: number;
-  discrepancy: number;
-  notes: string;
-  cashierId: string;
-  cashierName: string;
-  storeAddress?: string;
-  storeId: string;
-  storeName: string;
-  startTime: string;
-  endTime?: string;
-  createdAt: string;
-  updatedAt: string;
-  store: Store;
-  cashier: User;
-}
+// export interface ShiftReport {
+//   shiftReportId: string;
+//   shiftNumber: string;
+//   status: ShiftStatus;
+//   open: boolean;
+//   closed: boolean;
+//   totalTransactions: number;
+//   openingBalance: number;
+//   totalSales: number;
+//   totalRefunds: number;
+//   netSales: number;
+//   expectedBalance: number;
+//   actualBalance: number;
+//   closingBalance: number;
+//   discrepancy: number;
+//   notes: string;
+//   cashierId: string;
+//   cashierName: string;
+//   storeAddress?: string;
+//   storeId: string;
+//   storeName: string;
+//   startTime: string;
+//   endTime?: string;
+//   createdAt: string;
+//   updatedAt: string;
+//   store: Store;
+//   cashier: User;
+// }
 
 
 
@@ -457,11 +532,11 @@ export interface BulkOperationResponse {
   errors?: string[];
 }
 
-export interface ShiftReportRequest {
-  storeId: string;
-  openingBalance: number;
-  notes?: string;
-}
+// export interface ShiftReportRequest {
+//   storeId: string;
+//   openingBalance: number;
+//   notes?: string;
+// }
 
 export interface AuthResponse {
   token: string;

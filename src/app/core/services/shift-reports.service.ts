@@ -1,14 +1,23 @@
-import { HttpClient } from "@angular/common/http";
 import { Injectable, inject, signal } from "@angular/core";
-import { Observable, catchError, map, of, tap } from "rxjs";
-import { ApiConfig } from "../../core/api/api.config";
-import { HttpErrorHandler } from "../../core/api/http-error.handler";
-import { ApiResponse, PaginatedResponse, ShiftReport, ShiftStatus } from "../../core/models";
+import { HttpClient } from "@angular/common/http";
+import { Observable, catchError, map, tap, of } from "rxjs";
+import { ApiConfig } from "../api/api.config";
+import { HttpErrorHandler } from "../api/http-error.handler";
+import { 
+  ApiResponse, 
+  PaginatedResponse, 
+  ShiftReport, 
+  ShiftStatus, 
+  ShiftReportRequest,
+  CloseShiftRequest,
+  ShiftReportDetail
+} from "../models";
 
 interface ShiftReportFilters {
   status?: ShiftStatus;
   storeId?: string;
   cashierId?: string;
+  cashRegisterId?: string;  // AJOUTÉ
   startDate?: string;
   endDate?: string;
 }
@@ -22,6 +31,7 @@ export class ShiftReportsService {
   // State signals
   shiftReports = signal<ShiftReport[]>([]);
   selectedShiftReport = signal<ShiftReport | null>(null);
+  selectedShiftDetail = signal<ShiftReportDetail | null>(null);
   loading = signal<boolean>(false);
   error = signal<string | null>(null);
   total = signal<number>(0);
@@ -32,7 +42,6 @@ export class ShiftReportsService {
   openShifts = signal<ShiftReport[]>([]);
   closedShifts = signal<ShiftReport[]>([]);
   suspendedShifts = signal<ShiftReport[]>([]);
-  underReviewShifts = signal<ShiftReport[]>([]);
 
   // Load shift reports with pagination and filters
   loadShiftReports(page: number = 1, pageSize: number = 10, filters?: ShiftReportFilters): Observable<PaginatedResponse<ShiftReport>> {
@@ -49,19 +58,14 @@ export class ShiftReportsService {
       tap(data => {
         const items = Array.isArray(data) ? data : (data?.items || []);
         const total = Array.isArray(data) ? data.length : (data?.total || 0);
-        const page = Array.isArray(data) ? 1 : (data?.page || 0) + 1;
-        const size = Array.isArray(data) ? items.length : (data?.size || 10);
 
         this.shiftReports.set(items);
         this.total.set(total);
-        this.page.set(page);
-        this.pageSize.set(size);
         
         // Update computed signals
         this.openShifts.set(items.filter(s => s.status === ShiftStatus.OPEN));
         this.closedShifts.set(items.filter(s => s.status === ShiftStatus.CLOSED));
         this.suspendedShifts.set(items.filter(s => s.status === ShiftStatus.SUSPENDED));
-        this.underReviewShifts.set(items.filter(s => s.status === ShiftStatus.UNDER_REVIEW));
         
         this.loading.set(false);
       }),
@@ -93,12 +97,27 @@ export class ShiftReportsService {
     );
   }
 
-  // Create new shift report (open shift)
-  openShift(shiftData: {
-    storeId: string;
-    openingBalance: number;
-    notes?: string;
-  }): Observable<ShiftReport> {
+  // Get detailed shift report with payment breakdown
+  getShiftDetail(shiftId: string): Observable<ShiftReportDetail> {
+    this.loading.set(true);
+    return this.http.get<ApiResponse<ShiftReportDetail>>(
+      this.apiConfig.getEndpoint(`/shift-reports/${shiftId}/details`)
+    ).pipe(
+      map(response => response.data),
+      tap(detail => {
+        this.selectedShiftDetail.set(detail);
+        this.loading.set(false);
+      }),
+      catchError(error => {
+        this.loading.set(false);
+        this.errorHandler.handleError(error, 'Chargement des détails de la session');
+        throw error;
+      })
+    );
+  }
+
+  // Create new shift report (open shift) - MODIFIÉ avec cashRegisterId
+  openShift(shiftData: ShiftReportRequest): Observable<ShiftReport> {
     this.loading.set(true);
     return this.http.post<ApiResponse<ShiftReport>>(
       this.apiConfig.getEndpoint('/shift-reports/open'),
@@ -118,14 +137,15 @@ export class ShiftReportsService {
     );
   }
 
-  // Close shift
-  closeShift(shiftId: string, closingData: {
-    closingBalance: number;
-    notes?: string;
-  }): Observable<ShiftReport> {
-    return this.http.post<ApiResponse<ShiftReport>>(
+  // Close shift - MODIFIÉ avec nouvelle signature
+  closeShift(shiftId: string, closingData: CloseShiftRequest): Observable<ShiftReport> {
+    return this.http.patch<ApiResponse<ShiftReport>>(
       this.apiConfig.getEndpoint(`/shift-reports/${shiftId}/close`),
-      closingData
+      null,
+      { params: { 
+        actualBalance: closingData.actualBalance || 0,
+        notes: closingData.notes || ''
+      }}
     ).pipe(
       map(response => response.data),
       tap(updatedShift => {
@@ -142,10 +162,11 @@ export class ShiftReportsService {
   }
 
   // Suspend shift
-  suspendShift(shiftId: string, notes?: string): Observable<ShiftReport> {
-    return this.http.post<ApiResponse<ShiftReport>>(
+  suspendShift(shiftId: string, reason?: string): Observable<ShiftReport> {
+    return this.http.patch<ApiResponse<ShiftReport>>(
       this.apiConfig.getEndpoint(`/shift-reports/${shiftId}/suspend`),
-      { notes }
+      null,
+      { params: { reason: reason || '' }}
     ).pipe(
       map(response => response.data),
       tap(updatedShift => {
@@ -163,7 +184,7 @@ export class ShiftReportsService {
 
   // Resume suspended shift
   resumeShift(shiftId: string): Observable<ShiftReport> {
-    return this.http.post<ApiResponse<ShiftReport>>(
+    return this.http.patch<ApiResponse<ShiftReport>>(
       this.apiConfig.getEndpoint(`/shift-reports/${shiftId}/resume`),
       {}
     ).pipe(
@@ -181,100 +202,59 @@ export class ShiftReportsService {
     );
   }
 
-  // Add cash to shift
-  addCash(shiftId: string, amount: number, notes?: string): Observable<ShiftReport> {
-    return this.http.post<ApiResponse<ShiftReport>>(
-      this.apiConfig.getEndpoint(`/shift-reports/${shiftId}/add-cash`),
-      { amount, notes }
+  // Get shifts by cash register
+  getShiftsByCashRegister(cashRegisterId: string): Observable<ShiftReport[]> {
+    return this.http.get<ApiResponse<ShiftReport[]>>(
+      this.apiConfig.getEndpoint(`/shift-reports/cash-register/${cashRegisterId}`)
     ).pipe(
-      map(response => response.data),
-      tap(updatedShift => {
-        this.shiftReports.update(shifts => 
-          shifts.map(shift => shift.shiftReportId === shiftId ? updatedShift : shift)
-        );
-        this.selectedShiftReport.set(updatedShift);
-      }),
+      map(response => response.data || []),
       catchError(error => {
-        this.errorHandler.handleError(error, 'Ajout de caisse');
-        throw error;
+        this.errorHandler.handleError(error, 'Chargement des sessions par caisse');
+        return of([]);
       })
     );
   }
 
-  // Remove cash from shift
-  removeCash(shiftId: string, amount: number, notes?: string): Observable<ShiftReport> {
-    return this.http.post<ApiResponse<ShiftReport>>(
-      this.apiConfig.getEndpoint(`/shift-reports/${shiftId}/remove-cash`),
-      { amount, notes }
+  // Get open shifts by cash register
+  getOpenShiftsByCashRegister(cashRegisterId: string): Observable<ShiftReport[]> {
+    return this.http.get<ApiResponse<ShiftReport[]>>(
+      this.apiConfig.getEndpoint(`/shift-reports/cash-register/${cashRegisterId}/open`)
     ).pipe(
-      map(response => response.data),
-      tap(updatedShift => {
-        this.shiftReports.update(shifts => 
-          shifts.map(shift => shift.shiftReportId === shiftId ? updatedShift : shift)
-        );
-        this.selectedShiftReport.set(updatedShift);
-      }),
+      map(response => response.data || []),
       catchError(error => {
-        this.errorHandler.handleError(error, 'Retrait de caisse');
-        throw error;
+        this.errorHandler.handleError(error, 'Chargement des caisses ouvertes');
+        return of([]);
       })
     );
   }
 
-  // Update shift notes
-  updateNotes(shiftId: string, notes: string): Observable<ShiftReport> {
-    return this.http.patch<ApiResponse<ShiftReport>>(
-      this.apiConfig.getEndpoint(`/shift-reports/${shiftId}/notes`),
-      { notes }
-    ).pipe(
-      map(response => response.data),
-      tap(updatedShift => {
-        this.shiftReports.update(shifts => 
-          shifts.map(shift => shift.shiftReportId === shiftId ? updatedShift : shift)
-        );
-        this.selectedShiftReport.set(updatedShift);
-      }),
-      catchError(error => {
-        this.errorHandler.handleError(error, 'Mise à jour des notes');
-        throw error;
-      })
-    );
-  }
-
-  // Get shift summary
-  getShiftSummary(shiftId: string): Observable<any> {
-    return this.http.get<ApiResponse<any>>(
-      this.apiConfig.getEndpoint(`/shift-reports/${shiftId}/summary`)
-    ).pipe(
-      map(response => response.data),
-      catchError(error => {
-        this.errorHandler.handleError(error, 'Chargement du résumé');
-        throw error;
-      })
-    );
-  }
-
-  // Get today's shift for current user
+  // Get current shift for logged in cashier
   getCurrentShift(): Observable<ShiftReport | null> {
     return this.http.get<ApiResponse<ShiftReport>>(
       this.apiConfig.getEndpoint('/shift-reports/cashier/open')
     ).pipe(
       map(response => response.data),
-      catchError(() => of(null)) // Return null if no current shift
+      catchError(() => of(null))
     );
   }
 
-  // Get shift statistics
-  getStatistics(period: 'today' | 'week' | 'month'): Observable<any> {
-    return this.http.get<ApiResponse<any>>(
-      this.apiConfig.getEndpoint(`/shift-reports/statistics/${period}`)
-    ).pipe(
-      map(response => response.data),
-      catchError(error => {
-        this.errorHandler.handleError(error, 'Chargement des statistiques');
-        throw error;
-      })
-    );
+  // Get payment totals
+  getCashTotal(shiftId: string): Observable<number> {
+    return this.http.get<ApiResponse<number>>(
+      this.apiConfig.getEndpoint(`/shift-reports/${shiftId}/totals/cash`)
+    ).pipe(map(r => r.data || 0));
+  }
+
+  getMobileTotal(shiftId: string): Observable<number> {
+    return this.http.get<ApiResponse<number>>(
+      this.apiConfig.getEndpoint(`/shift-reports/${shiftId}/totals/mobile`)
+    ).pipe(map(r => r.data || 0));
+  }
+
+  getCardTotal(shiftId: string): Observable<number> {
+    return this.http.get<ApiResponse<number>>(
+      this.apiConfig.getEndpoint(`/shift-reports/${shiftId}/totals/card`)
+    ).pipe(map(r => r.data || 0));
   }
 
   // Set pagination
