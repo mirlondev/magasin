@@ -53,11 +53,11 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
           <div>
             <h1 class="text-2xl font-bold">Session #{{ shift()?.shiftNumber }}</h1>
             <p class="text-gray-600">
-              @if (shift()?.startTime) {
-                Ouverte le {{ shift()?.startTime | date:'dd/MM/yyyy à HH:mm' }}
+              @if (shift()?.openingTime) {
+                Ouverte le {{ shift()?.openingTime | date:'dd/MM/yyyy à HH:mm' }}
               }
-              @if (shift()?.endTime) {
-                • Fermée le {{ shift()?.endTime | date:'dd/MM/yyyy à HH:mm' }}
+              @if (shift()?.closingTime) {
+                • Fermée le {{ shift()?.closingTime | date:'dd/MM/yyyy à HH:mm' }}
               }
               @if (shift()?.cashRegisterNumber) {
                 • Caisse {{ shift()?.cashRegisterNumber }}
@@ -272,7 +272,7 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
                 <div>
                   <div class="text-sm text-gray-500">Durée</div>
                   <div class="font-medium mt-1">
-                    @if (shift()!.endTime) {
+                    @if (shift()!.closingTime) {
                       {{ getShiftDuration() }}
                     } @else {
                       En cours...
@@ -333,7 +333,7 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
                   <div class="w-3 h-3 bg-green-500 rounded-full mt-1 mr-3"></div>
                   <div>
                     <div class="font-medium">Caisse ouverte</div>
-                    <div class="text-sm text-gray-500">{{ shift()!.startTime | date:'dd/MM/yyyy HH:mm' }}</div>
+                    <div class="text-sm text-gray-500">{{ shift()!.openingTime | date:'dd/MM/yyyy HH:mm' }}</div>
                     <div class="text-sm text-gray-500">Solde: {{ shift()!.openingBalance | xaf }}</div>
                     @if (shift()?.cashRegisterNumber) {
                       <div class="text-sm text-blue-600">Caisse: {{ shift()?.cashRegisterNumber }}</div>
@@ -341,7 +341,7 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
                   </div>
                 </div>
                 
-                @if (shift()!.updatedAt !== shift()!.startTime) {
+                @if (shift()!.updatedAt !== shift()!.openingTime) {
                   <div class="flex items-start">
                     <div class="w-3 h-3 bg-blue-500 rounded-full mt-1 mr-3"></div>
                     <div>
@@ -351,12 +351,12 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
                   </div>
                 }
                 
-                @if (shift()!.endTime) {
+                @if (shift()!.closingTime) {
                   <div class="flex items-start">
                     <div class="w-3 h-3 bg-purple-500 rounded-full mt-1 mr-3"></div>
                     <div>
                       <div class="font-medium">Caisse fermée</div>
-                      <div class="text-sm text-gray-500">{{ shift()!.endTime | date:'dd/MM/yyyy HH:mm' }}</div>
+                      <div class="text-sm text-gray-500">{{ shift()!.closingTime | date:'dd/MM/yyyy HH:mm' }}</div>
                     </div>
                   </div>
                 }
@@ -521,10 +521,10 @@ export class ShiftReportDetailComponent implements OnInit {
 
   getShiftDuration(): string {
     const shift = this.shift();
-    if (!shift?.startTime || !shift?.endTime) return '';
+    if (!shift?.openingTime || !shift?.closingTime) return '';
     
-    const start = new Date(shift.startTime);
-    const end = new Date(shift.endTime);
+    const start = new Date(shift.openingTime);
+    const end = new Date(shift.closingTime);
     const duration = end.getTime() - start.getTime();
     
     const hours = Math.floor(duration / (1000 * 60 * 60));

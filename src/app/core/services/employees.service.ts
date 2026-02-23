@@ -1,9 +1,9 @@
-import { HttpClient } from "@angular/common/http";
+import { HttpClient, HttpParams } from "@angular/common/http";
 import { Injectable, inject, signal } from "@angular/core";
 import { Observable, catchError, map, of, tap } from "rxjs";
 import { ApiConfig } from "../../core/api/api.config";
 import { HttpErrorHandler } from "../../core/api/http-error.handler";
-import { ApiResponse, EmployeeRole, PaginatedResponse, User } from "../../core/models";
+import { ApiResponse, EmployeeRole, EmployeeRequest, EmployeeUpdateRequest, PaginatedResponse, User, EmployeeResponse } from "../../core/models";
 
 interface EmployeeFilters {
   search?: string;
@@ -18,28 +18,25 @@ export class EmployeesService {
   private apiConfig = inject(ApiConfig);
   private errorHandler = inject(HttpErrorHandler);
 
-  // State signals
-  employees = signal<User[]>([]);
-  selectedEmployee = signal<User | null>(null);
+  employees = signal<EmployeeResponse[]>([]);
+  selectedEmployee = signal<EmployeeResponse | null>(null);
   loading = signal<boolean>(false);
   error = signal<string | null>(null);
   total = signal<number>(0);
   page = signal<number>(1);
   pageSize = signal<number>(10);
 
-  // Computed values
-  activeEmployees = signal<User[]>([]);
-  admins = signal<User[]>([]);
-  cashiers = signal<User[]>([]);
+  activeEmployees = signal<EmployeeResponse[]>([]);
+  admins = signal<EmployeeResponse[]>([]);
+  cashiers = signal<EmployeeResponse[]>([]);
 
-  // Load employees with pagination and filters
   loadEmployees(page: number = 1, pageSize: number = 10, filters?: EmployeeFilters) {
     this.loading.set(true);
     this.error.set(null);
 
     const params: any = { page: page - 1, size: pageSize, ...filters };
 
-    this.http.get<ApiResponse<PaginatedResponse<User>>>(
+    this.http.get<ApiResponse<PaginatedResponse<EmployeeResponse>>>(
       this.apiConfig.getEndpoint('/employees'),
       { params }
     ).pipe(
@@ -50,7 +47,6 @@ export class EmployeesService {
         return of({ items: [], total: 0, page: 0, size: 0, totalPages: 0 });
       })
     ).subscribe(data => {
-      console.log(data);
       const items = Array.isArray(data) ? data : (data?.items || []);
       const total = Array.isArray(data) ? data.length : (data?.total || 0);
       const page = Array.isArray(data) ? 1 : (data?.page || 0) + 1;
@@ -61,19 +57,17 @@ export class EmployeesService {
       this.page.set(page);
       this.pageSize.set(size);
       
-      // Update computed signals
       this.activeEmployees.set(items.filter(e => e.active));
-      this.admins.set(items.filter(e => e.userRole === EmployeeRole.ADMIN));
-      this.cashiers.set(items.filter(e => e.userRole === EmployeeRole.CASHIER));
+      this.admins.set(items.filter(e => e.role === EmployeeRole.ADMIN));
+      this.cashiers.set(items.filter(e => e.role === EmployeeRole.CASHIER));
       
       this.loading.set(false);
     });
   }
 
-  // Get employee by ID
-  getEmployeeById(employeeId: string): Observable<User> {
+  getEmployeeById(employeeId: string): Observable<EmployeeResponse> {
     this.loading.set(true);
-    return this.http.get<ApiResponse<User>>(
+    return this.http.get<ApiResponse<EmployeeResponse>>(
       this.apiConfig.getEndpoint(`/employees/${employeeId}`)
     ).pipe(
       map(response => response.data),
@@ -89,10 +83,9 @@ export class EmployeesService {
     );
   }
 
-  // Create new employee
-  createEmployee(employeeData: Partial<User>): Observable<User> {
+  createEmployee(employeeData: EmployeeRequest): Observable<EmployeeResponse> {
     this.loading.set(true);
-    return this.http.post<ApiResponse<User>>(
+    return this.http.post<ApiResponse<EmployeeResponse>>(
       this.apiConfig.getEndpoint('/employees'),
       employeeData
     ).pipe(
@@ -110,17 +103,16 @@ export class EmployeesService {
     );
   }
 
-  // Update employee
-  updateEmployee(employeeId: string, employeeData: Partial<User>): Observable<User> {
+  updateEmployee(employeeId: string, employeeData: EmployeeUpdateRequest): Observable<EmployeeResponse> {
     this.loading.set(true);
-    return this.http.put<ApiResponse<User>>(
+    return this.http.put<ApiResponse<EmployeeResponse>>(
       this.apiConfig.getEndpoint(`/employees/${employeeId}`),
       employeeData
     ).pipe(
       map(response => response.data),
       tap(updatedEmployee => {
         this.employees.update(employees => 
-          employees.map(employee => employee.userId === employeeId ? updatedEmployee : employee)
+          employees.map(employee => employee.employeeId === employeeId ? updatedEmployee : employee)
         );
         this.selectedEmployee.set(updatedEmployee);
         this.loading.set(false);
@@ -133,7 +125,6 @@ export class EmployeesService {
     );
   }
 
-  // Delete employee
   deleteEmployee(employeeId: string): Observable<void> {
     return this.http.delete<ApiResponse<void>>(
       this.apiConfig.getEndpoint(`/employees/${employeeId}`)
@@ -141,10 +132,10 @@ export class EmployeesService {
       map(response => response.data),
       tap(() => {
         this.employees.update(employees => 
-          employees.filter(employee => employee.userId !== employeeId)
+          employees.filter(employee => employee.employeeId !== employeeId)
         );
         this.total.update(total => total - 1);
-        if (this.selectedEmployee()?.userId === employeeId) {
+        if (this.selectedEmployee()?.employeeId === employeeId) {
           this.selectedEmployee.set(null);
         }
       }),
@@ -155,16 +146,15 @@ export class EmployeesService {
     );
   }
 
-  // Update employee role
-  updateEmployeeRole(employeeId: string, newRole: EmployeeRole): Observable<User> {
-    return this.http.patch<ApiResponse<User>>(
+  updateEmployeeRole(employeeId: string, newRole: EmployeeRole): Observable<EmployeeResponse> {
+    return this.http.patch<ApiResponse<EmployeeResponse>>(
       this.apiConfig.getEndpoint(`/employees/${employeeId}/role/${newRole}`),
       {}
     ).pipe(
       map(response => response.data),
       tap(updatedEmployee => {
         this.employees.update(employees => 
-          employees.map(employee => employee.userId === employeeId ? updatedEmployee : employee)
+          employees.map(employee => employee.employeeId === employeeId ? updatedEmployee : employee)
         );
         this.selectedEmployee.set(updatedEmployee);
       }),
@@ -175,16 +165,15 @@ export class EmployeesService {
     );
   }
 
-  // Activate/Deactivate employee
-  updateEmployeeStatus(employeeId: string, active: boolean): Observable<User> {
-    return this.http.patch<ApiResponse<User>>(
+  updateEmployeeStatus(employeeId: string, active: boolean): Observable<EmployeeResponse> {
+    return this.http.patch<ApiResponse<EmployeeResponse>>(
       this.apiConfig.getEndpoint(`/employees/${employeeId}/status`),
       { active }
     ).pipe(
       map(response => response.data),
       tap(updatedEmployee => {
         this.employees.update(employees => 
-          employees.map(employee => employee.userId === employeeId ? updatedEmployee : employee)
+          employees.map(employee => employee.employeeId === employeeId ? updatedEmployee : employee)
         );
         this.selectedEmployee.set(updatedEmployee);
       }),
@@ -195,16 +184,15 @@ export class EmployeesService {
     );
   }
 
-  // Assign store to employee
-  assignStore(employeeId: string, storeId: string): Observable<User> {
-    return this.http.patch<ApiResponse<User>>(
+  assignStore(employeeId: string, storeId: string): Observable<EmployeeResponse> {
+    return this.http.patch<ApiResponse<EmployeeResponse>>(
       this.apiConfig.getEndpoint(`/employees/${employeeId}/assign-store/${storeId}`),
       {}
     ).pipe(
       map(response => response.data),
       tap(updatedEmployee => {
         this.employees.update(employees => 
-          employees.map(employee => employee.userId === employeeId ? updatedEmployee : employee)
+          employees.map(employee => employee.employeeId === employeeId ? updatedEmployee : employee)
         );
         this.selectedEmployee.set(updatedEmployee);
       }),
@@ -215,7 +203,6 @@ export class EmployeesService {
     );
   }
 
-  // Get employee statistics
   getEmployeeStatistics(): Observable<any> {
     return this.http.get<ApiResponse<any>>(
       this.apiConfig.getEndpoint('/employees/statistics')
@@ -228,9 +215,8 @@ export class EmployeesService {
     );
   }
 
-  // Search employees
-  searchEmployees(query: string): Observable<User[]> {
-    return this.http.get<ApiResponse<User[]>>(
+  searchEmployees(query: string): Observable<EmployeeResponse[]> {
+    return this.http.get<ApiResponse<EmployeeResponse[]>>(
       this.apiConfig.getEndpoint('/employees/search'),
       { params: { q: query } }
     ).pipe(
@@ -242,7 +228,6 @@ export class EmployeesService {
     );
   }
 
-  // Set pagination
   setPage(newPage: number) {
     this.page.set(newPage);
     this.loadEmployees(newPage, this.pageSize());
@@ -253,7 +238,6 @@ export class EmployeesService {
     this.loadEmployees(1, newPageSize);
   }
 
-  // Initialize
   initialize() {
     this.loadEmployees();
   }

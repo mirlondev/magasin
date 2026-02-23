@@ -1,11 +1,11 @@
-import { HttpClient } from "@angular/common/http";
+import { HttpClient, HttpParams } from "@angular/common/http";
 import { Injectable, inject } from "@angular/core";
 import { computed, effect, signal } from "@angular/core";
 import { toObservable, toSignal } from "@angular/core/rxjs-interop";
 import { Observable, catchError, map, of, switchMap, tap } from "rxjs";
 import { ApiConfig } from "../../core/api/api.config";
 import { HttpErrorHandler } from "../../core/api/http-error.handler";
-import { ApiResponse, PaginatedResponse, Store, StoreStatus, StoreType } from "../../core/models";
+import { ApiResponse, PaginatedResponse, Store, StoreStatus, StoreType, StoreRequest } from "../../core/models";
 
 interface StoreState {
   items: Store[];
@@ -23,7 +23,6 @@ export class StoresService {
   private apiConfig = inject(ApiConfig);
   private errorHandler = inject(HttpErrorHandler);
 
-  // State signals
   private state = signal<StoreState>({
     items: [],
     selected: null,
@@ -34,7 +33,6 @@ export class StoresService {
     pageSize: 10
   });
 
-  // Public signals
   items = computed(() => this.state().items);
   selected = computed(() => this.state().selected);
   loading = computed(() => this.state().loading);
@@ -43,7 +41,6 @@ export class StoresService {
   page = computed(() => this.state().page);
   pageSize = computed(() => this.state().pageSize);
 
-  // Computed values
   activeStores = computed(() => 
     this.items().filter(store => store.status === StoreStatus.ACTIVE)
   );
@@ -56,7 +53,6 @@ export class StoresService {
     this.items().filter(store => store.storeType === StoreType.WAREHOUSE)
   );
 
-  // Private methods
   private setLoading(loading: boolean) {
     this.state.update(s => ({ ...s, loading, error: loading ? null : s.error }));
   }
@@ -69,7 +65,6 @@ export class StoresService {
     this.state.update(s => ({ ...s, selected: store }));
   }
 
-  // API Methods
   loadStores(page: number = 1, pageSize: number = 10, filters?: any): Observable<PaginatedResponse<Store>> {
     this.setLoading(true);
     
@@ -79,9 +74,7 @@ export class StoresService {
       this.apiConfig.getEndpoint('/stores'),
       { params }
     ).pipe(
-      map(response => response.data
-
-      ),
+      map(response => response.data),
       tap(data => {
         const items = Array.isArray(data) ? data : (data?.items || []);
         const total = Array.isArray(data) ? data.length : (data?.total || 0);
@@ -128,7 +121,7 @@ export class StoresService {
     });
   }
 
-  createStore(storeData: Partial<Store>): Observable<Store> {
+  createStore(storeData: StoreRequest): Observable<Store> {
     return this.http.post<ApiResponse<Store>>(
       this.apiConfig.getEndpoint('/stores'),
       storeData
@@ -148,7 +141,7 @@ export class StoresService {
     );
   }
 
-  updateStore(storeId: string, storeData: Partial<Store>): Observable<Store> {
+  updateStore(storeId: string, storeData: StoreRequest): Observable<Store> {
     return this.http.put<ApiResponse<Store>>(
       this.apiConfig.getEndpoint(`/stores/${storeId}`),
       storeData
@@ -212,7 +205,6 @@ export class StoresService {
     );
   }
 
-  // Business methods
   activateStore(storeId: string) {
     return this.updateStoreStatus(storeId, StoreStatus.ACTIVE);
   }
@@ -221,10 +213,8 @@ export class StoresService {
     return this.updateStoreStatus(storeId, StoreStatus.CLOSED);
   }
 
-  // Pagination
   setPage(page: number) {
     this.state.update(s => ({ ...s, page }));
-    //this.loadStores(page, this.pageSize);
   }
 
   setPageSize(pageSize: number) {
@@ -232,7 +222,6 @@ export class StoresService {
     this.loadStores(1, pageSize).subscribe();
   }
 
-  // Initialize
   initialize() {
     this.loadStores().subscribe();
   }

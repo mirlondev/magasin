@@ -1,5 +1,5 @@
 // components/receipt-dialog/receipt-dialog.component.ts
-import { Component, inject, signal, effect } from '@angular/core';
+import { Component, inject, signal, effect, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DialogModule } from 'primeng/dialog';
 import { ButtonModule } from 'primeng/button';
@@ -104,12 +104,12 @@ export class ReceiptDialogComponent {
   private messageService = inject(MessageService);
 
   visible = signal(true);
-  orderId = signal<string>('');
+  orderId = input<string>('');
   receiptData = signal<ReceiptData | null>(null);
   selectedTarget = signal<PrintTarget>('pdf');
-  
-  onComplete?: (target: PrintTarget) => void;
-  onCancelCb?: () => void;
+
+  complete = output<PrintTarget>();
+  cancel = output<void>();
 
   actionLabel = () => {
     switch (this.selectedTarget()) {
@@ -152,7 +152,7 @@ export class ReceiptDialogComponent {
 
   onConfirm() {
     const target = this.selectedTarget();
-    
+
     switch (target) {
       case 'pdf':
         // Ouvre dans nouvel onglet avec auth
@@ -174,12 +174,12 @@ export class ReceiptDialogComponent {
       life: 2000
     });
 
-    this.onComplete?.(target);
+    this.complete.emit(target);
     this.visible.set(false);
   }
 
   onCancel() {
-    this.onCancelCb?.();
+    this.cancel.emit();
     this.visible.set(false);
   }
 }

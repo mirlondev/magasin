@@ -207,7 +207,7 @@ import { ShiftReportsService } from "../../../../core/services/shift-reports.ser
         </div>
 
         <!-- Low Stock Products -->
-        @if (lowStockProducts().length > 0) {
+        @if (lowStockProducts()) {
           <div>
             <p-card header="Produits en alerte de stock" class="shadow-lg">
               <div class="space-y-4">
@@ -228,15 +228,15 @@ import { ShiftReportsService } from "../../../../core/services/shift-reports.ser
                         <div class="text-sm text-gray-500">SKU: {{ product.sku }}</div>
                       </div>
                     </div>
-                    <div class="text-right">
+                    <!-- <div class="text-right">
                       <div class="font-semibold" [class.text-red-500]="product.quantity === 0" [class.text-orange-600]="product.quantity > 0 && product.quantity <= (product.minStock)">
                         {{ product.quantity }} unités
                       </div>
-                      <div class="text-sm" [class.text-red-600]="product.quantity === 0" [class.text-orange-600]="product.quantity > 0">
+                      <div class="text-sm" [class.text-red-600]="product.quantity === 0">
                         <i class="pi pi-exclamation-triangle mr-1"></i>
                         {{ product.quantity === 0 ? 'Rupture' : 'Stock faible' }}
                       </div>
-                    </div>
+                    </div> -->
                   </div>
                 }
               </div>

@@ -11,7 +11,7 @@ import { DividerModule } from "primeng/divider";
 import { TableModule } from "primeng/table";
 import { TagModule } from "primeng/tag";
 import { ToastModule } from "primeng/toast";
-import { EmployeeRole, OrderStatus, PaymentStatus } from "../../../core/models";
+import { EmployeeRole, OrderStatus, PaymentStatus, PaymentMethod } from "../../../core/models";
 import { AuthService } from "../../../core/services/auth.service";
 import { OrderService } from "../../../core/services/orders.service";
 import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
@@ -104,7 +104,7 @@ import { OrderHelper } from "../../../core/utils/helpers";
                     </div>
                     <div class="flex justify-between">
                       <span class="text-gray-600">Méthode de paiement:</span>
-                      <span class="font-medium">{{ OrderHelper.getPaymentMethodLabel(order()!.paymentMethod) }}</span>
+                      <span class="font-medium">{{ OrderHelper.getPaymentMethodLabel(order()!.paymentMethod || PaymentMethod.CASH) }}</span>
                     </div>
                     <div class="flex justify-between">
                       <span class="text-gray-600">Caissier ID:</span>
@@ -126,7 +126,7 @@ import { OrderHelper } from "../../../core/utils/helpers";
                     </div>
                     <div class="flex justify-between">
                       <span class="text-gray-600">Remise:</span>
-                      <span class="text-red-500">-{{ order()!.discountAmount | xaf }}</span>
+                      <span class="text-red-500">-{{ order()!.discountAmount || 0 | xaf }}</span>
                     </div>
                     <div class="flex justify-between">
                       <span class="text-gray-600">Taxe ({{ order()!.taxRate }}%):</span>
@@ -139,7 +139,7 @@ import { OrderHelper } from "../../../core/utils/helpers";
                     </div>
                     <div class="flex justify-between">
                       <span class="text-gray-600">Payé:</span>
-                      <span class="font-medium">{{ order()!.totalPaid || order()!.amountPaid | xaf }}</span>
+                      <span class="font-medium">{{ order()!.totalPaid || order()!.amountPaid || 0 | xaf }}</span>
                     </div>
                     @if (order()!.changeAmount > 0) {
                       <div class="flex justify-between">
@@ -386,8 +386,8 @@ export class OrderDetailComponent implements OnInit {
     if (!this.authService.hasRole([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN])) {
       return false;
     }
-    return this.order()?.status !== 'CANCELLED' && 
-           this.order()?.status !== 'COMPLETED';
+    return this.order()?.status !== 'CANCELLED' &&
+      this.order()?.status !== 'COMPLETED';
   }
 
   canProcessPayment(): boolean {
@@ -505,4 +505,5 @@ export class OrderDetailComponent implements OnInit {
   }
 
   protected readonly OrderStatus = OrderStatus;
+  protected readonly PaymentMethod = PaymentMethod;
 }

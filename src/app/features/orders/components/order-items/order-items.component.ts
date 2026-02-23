@@ -72,10 +72,10 @@ import { XafPipe } from '../../../../core/pipes/xaf-currency-pipe';
                       <div class="text-sm font-semibold text-primary">
                         {{ item.product.price | xaf }}
                       </div>
-                      @if (item.product.quantity <= 0) {
+                      @if ((item.product.quantity || 0) <= 0) {
                         <p-tag value="Rupture" severity="danger" size="small" />
-                      } @else if (item.quantity > item.product.quantity) {
-                        <p-tag [value]="'Stock: ' + item.product.quantity" 
+                      } @else if (item.quantity > (item.product.quantity || 0)) {
+                        <p-tag [value]="'Stock: ' + (item.product.quantity || 0)" 
                                severity="warn" 
                                size="small" />
                       }
@@ -97,14 +97,14 @@ import { XafPipe } from '../../../../core/pipes/xaf-currency-pipe';
                             icon="pi pi-plus" 
                             class="p-button-rounded p-button-text p-button-sm"
                             (click)="onUpdateQuantity(item.product.productId, 1)"
-                            [disabled]="item.quantity >= item.product.quantity">
+                            [disabled]="item.quantity >= (item.product.quantity || 0)">
                     </button>
                   </div>
                 </td>
 
                 <!-- Total -->
                 <td class="p-3 text-right">
-                  <div class="font-bold">{{ (item.product.price * item.quantity) | xaf }}</div>
+                  <div class="font-bold">{{ ((item.product.price || 0) * item.quantity) | xaf }}</div>
                   @if (item.quantity > 1) {
                     <div class="text-xs text-gray-500">
                       {{ item.quantity }} × {{ item.product.price | xaf }}
@@ -185,13 +185,13 @@ export class OrderItemsComponent {
   clearCustomer = output<void>();
 
   // Computed
-  totalItems = computed(() => 
+  totalItems = computed(() =>
     this.items().reduce((total, item) => total + item.quantity, 0)
   );
 
-  totalAmount = computed(() => 
-    this.items().reduce((total, item) => 
-      total + (item.product.price * item.quantity), 0
+  totalAmount = computed(() =>
+    this.items().reduce((total, item) =>
+      total + ((item.product.price || 0) * item.quantity), 0
     )
   );
 

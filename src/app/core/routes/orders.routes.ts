@@ -5,9 +5,10 @@ import { OrderListComponent } from "../../features/orders/pages/order-list.compo
 import { OrderCreateComponent } from "../../features/orders/pages/order-create.component";
 import { roleGuard } from "../guards/role-guard";
 import { PosSaleComponent } from "../../features/orders/pages/pos-sale/pos-sale.component";
-import { CreditSaleComponent } from "../../features/orders/pages/credit-sale/credit-sale.component";
-import { ProformaComponent } from "../../features/orders/pages/proforma/proforma.component";
+// import { CreditSaleComponent } from "../../features/orders/pages/credit-sale/credit-sale.component";
+// import { ProformaComponent } from "../../features/orders/pages/proforma/proforma.component";
 import { ShiftOpenGuard } from "../guards/shift-open.guard";
+import { DocumentSaleComponent } from "../../features/orders/pages/document-sale/document-sale.component";
 export const ORDERS_ROUTES: Routes = [
   
     { path: '',
@@ -28,10 +29,13 @@ export const ORDERS_ROUTES: Routes = [
        canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER] ), /*ShiftOpenGuard*/]
 
       },
-      { path: 'credit-sale', component: CreditSaleComponent,
-       canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER])]
-       },
-      { path: 'proforma', component: ProformaComponent,
+      // { path: 'credit-sale', component: CreditSaleComponent,
+      //  canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER])]
+      //  },
+      // { path: 'proforma', component: ProformaComponent,
+      //  canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER])]
+      //  },
+      { path: 'documents-sale', component: DocumentSaleComponent,
        canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER])]
        },
 
@@ -51,6 +55,6 @@ export const ORDERS_ROUTES: Routes = [
   // Redirects for backward compatibility
   { path: 'orders/create', redirectTo: 'orders/pos-sale', pathMatch: 'full' },
   { path: 'orders/pos', redirectTo: 'orders/pos-sale', pathMatch: 'full' },
-  { path: 'orders/credit', redirectTo: 'orders/credit-sale', pathMatch: 'full' },
-  { path: 'orders/proforma', redirectTo: 'orders/proforma', pathMatch: 'full' }
+  // { path: 'orders/credit', redirectTo: 'orders/credit-sale', pathMatch: 'full' },
+  // { path: 'orders/proforma', redirectTo: 'orders/proforma', pathMatch: 'full' }
 ];

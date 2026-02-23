@@ -50,10 +50,10 @@ import { FormsModule } from "@angular/forms";
     ProgressBarModule,
     DialogModule,
     InputNumberModule,
-   TextareaModule,
+    TextareaModule,
     XafPipe,
     SelectModule
-],
+  ],
   template: `
     <div class="p-4 max-w-7xl mx-auto">
       <p-toast />
@@ -181,7 +181,7 @@ import { FormsModule } from "@angular/forms";
                 </div>
               </div>
 
-              @if (inventoryItem()?.lowStock) {
+              @if (inventoryItem()?.isLowStock) {
                 <div class="mt-4 p-3 bg-orange-50 dark:bg-orange-900/20 border-l-4 border-orange-500 rounded">
                   <div class="flex items-center">
                     <i class="pi pi-exclamation-triangle text-orange-500 mr-2"></i>
@@ -190,7 +190,7 @@ import { FormsModule } from "@angular/forms";
                 </div>
               }
               
-              @if (inventoryItem()?.outOfStock) {
+              @if (inventoryItem()?.isOutOfStock) {
                 <div class="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded">
                   <div class="flex items-center">
                     <i class="pi pi-times-circle text-red-500 mr-2"></i>
@@ -402,22 +402,22 @@ export class InventoryDetailComponent implements OnInit {
   inventoryId = signal<string | null>(null);
   inventoryItem = signal<Inventory | null>(null);
   loading = signal(true);
-  
+
   // Dialog states
   showRestockDialog = false;
   showTransferDialog = false;
-  
+
   // Restock data
   restockQuantity = 10;
   restockUnitCost = 0;
   restockNotes = '';
-  
+
   // Transfer data
   transferStoreId = '';
   transferQuantity = 1;
   transferNotes = '';
   availableStores = signal<Store[]>([]);
-  
+
   // Chart data
   stockChartData = signal<any>(null);
   chartOptions = {
@@ -428,7 +428,7 @@ export class InventoryDetailComponent implements OnInit {
       y: { beginAtZero: true }
     }
   };
-  
+
   // Mock data
   stockMovements = signal<any[]>([]);
 
@@ -482,16 +482,16 @@ export class InventoryDetailComponent implements OnInit {
 
   loadChartData() {
     // Mock chart data
-    const labels = Array.from({length: 30}, (_, i) => {
+    const labels = Array.from({ length: 30 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (29 - i));
       return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
     });
-    
-    const data = Array.from({length: 30}, () => 
+
+    const data = Array.from({ length: 30 }, () =>
       Math.floor(Math.random() * 50) + (this.inventoryItem()?.quantity || 0) - 25
     );
-    
+
     this.stockChartData.set({
       labels,
       datasets: [{
@@ -508,9 +508,9 @@ export class InventoryDetailComponent implements OnInit {
   stockStatus(): 'ok' | 'low' | 'out' | 'over' {
     const item = this.inventoryItem();
     if (!item) return 'ok';
-    if (item.outOfStock) return 'out';
-    if (item.lowStock) return 'low';
-    if (item.overStock) return 'over';
+    if (item.isOutOfStock) return 'out';
+    if (item.isLowStock) return 'low';
+    if (item.isOverStock) return 'over';
     return 'ok';
   }
 
@@ -522,9 +522,9 @@ export class InventoryDetailComponent implements OnInit {
 
   stockProgressClass(): string {
     const status = this.stockStatus();
-    return status === 'ok' ? 'p-progressbar-success' : 
-           status === 'low' ? 'p-progressbar-warning' : 
-           status === 'out' ? 'p-progressbar-danger' : 'p-progressbar-info';
+    return status === 'ok' ? 'p-progressbar-success' :
+      status === 'low' ? 'p-progressbar-warning' :
+        status === 'out' ? 'p-progressbar-danger' : 'p-progressbar-info';
   }
 
   margin(): number {

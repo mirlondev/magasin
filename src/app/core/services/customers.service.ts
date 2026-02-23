@@ -1,9 +1,9 @@
-import { HttpClient } from "@angular/common/http";
+import { HttpClient, HttpParams } from "@angular/common/http";
 import { Injectable, inject, signal } from "@angular/core";
 import { Observable, catchError, map, of, tap } from "rxjs";
 import { ApiConfig } from "../../core/api/api.config";
 import { HttpErrorHandler } from "../../core/api/http-error.handler";
-import { ApiResponse, Customer, PaginatedResponse } from "../../core/models";
+import { ApiResponse, Customer, CustomerRequest, PaginatedResponse } from "../../core/models";
 
 interface CustomerFilters {
   search?: string;
@@ -20,7 +20,6 @@ export class CustomersService {
   private apiConfig = inject(ApiConfig);
   private errorHandler = inject(HttpErrorHandler);
 
-  // State signals
   customers = signal<Customer[]>([]);
   selectedCustomer = signal<Customer | null>(null);
   loading = signal<boolean>(false);
@@ -29,11 +28,9 @@ export class CustomersService {
   page = signal<number>(1);
   pageSize = signal<number>(10);
 
-  // Computed values
   activeCustomers = signal<Customer[]>([]);
   topCustomers = signal<Customer[]>([]);
 
-  // Load customers with pagination and filters
   loadCustomers(page: number = 1, pageSize: number = 10, filters?: CustomerFilters): Observable<PaginatedResponse<Customer>> {
     this.loading.set(true);
     this.error.set(null);
@@ -56,7 +53,6 @@ export class CustomersService {
         this.page.set(pageNum);
         this.pageSize.set(size);
         
-        // Update computed signals
         this.activeCustomers.set(items.filter(c => c.isActive));
         this.topCustomers.set([...items]
           .sort((a, b) => b.totalPurchases - a.totalPurchases)
@@ -73,7 +69,6 @@ export class CustomersService {
     );
   }
 
-  // Get customer by ID
   getCustomerById(customerId: string): Observable<Customer> {
     this.loading.set(true);
     return this.http.get<ApiResponse<Customer>>(
@@ -92,8 +87,7 @@ export class CustomersService {
     );
   }
 
-  // Create new customer
-  createCustomer(customerData: Partial<Customer>): Observable<Customer> {
+  createCustomer(customerData: CustomerRequest): Observable<Customer> {
     this.loading.set(true);
     return this.http.post<ApiResponse<Customer>>(
       this.apiConfig.getEndpoint('/customers'),
@@ -113,8 +107,7 @@ export class CustomersService {
     );
   }
 
-  // Update customer
-  updateCustomer(customerId: string, customerData: Partial<Customer>): Observable<Customer> {
+  updateCustomer(customerId: string, customerData: CustomerRequest): Observable<Customer> {
     this.loading.set(true);
     return this.http.put<ApiResponse<Customer>>(
       this.apiConfig.getEndpoint(`/customers/${customerId}`),
@@ -136,7 +129,6 @@ export class CustomersService {
     );
   }
 
-  // Delete customer
   deleteCustomer(customerId: string): Observable<void> {
     return this.http.delete<ApiResponse<void>>(
       this.apiConfig.getEndpoint(`/customers/${customerId}`)
@@ -158,7 +150,6 @@ export class CustomersService {
     );
   }
 
-  // Activate/Deactivate customer
   updateCustomerStatus(customerId: string, isActive: boolean): Observable<Customer> {
     return this.http.patch<ApiResponse<Customer>>(
       this.apiConfig.getEndpoint(`/customers/${customerId}/status`),
@@ -178,7 +169,6 @@ export class CustomersService {
     );
   }
 
-  // Add loyalty points
   addLoyaltyPoints(customerId: string, points: number): Observable<Customer> {
     return this.http.patch<ApiResponse<Customer>>(
       this.apiConfig.getEndpoint(`/customers/${customerId}/loyalty/add/${points}`),
@@ -198,7 +188,6 @@ export class CustomersService {
     );
   }
 
-  // Get customer statistics
   getCustomerStatistics(): Observable<any> {
     return this.http.get<ApiResponse<any>>(
       this.apiConfig.getEndpoint('/customers/statistics')
@@ -211,7 +200,6 @@ export class CustomersService {
     );
   }
 
-  // Search customers
   searchCustomers(query: string): Observable<Customer[]> {
     return this.http.get<ApiResponse<Customer[]>>(
       this.apiConfig.getEndpoint('/customers/search'),
@@ -225,7 +213,6 @@ export class CustomersService {
     );
   }
 
-  // Export customers
   exportCustomers(format: 'csv' | 'excel' = 'csv'): Observable<Blob> {
     return this.http.get(
       this.apiConfig.getEndpoint('/customers/export'),
@@ -238,7 +225,6 @@ export class CustomersService {
     );
   }
 
-  // Set pagination
   setPage(newPage: number) {
     this.page.set(newPage);
     this.loadCustomers(newPage, this.pageSize());
@@ -249,7 +235,6 @@ export class CustomersService {
     this.loadCustomers(1, newPageSize);
   }
 
-  // Initialize
   initialize() {
     this.loadCustomers();
   }

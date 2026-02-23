@@ -1,9 +1,9 @@
-import { HttpClient } from "@angular/common/http";
+import { HttpClient, HttpParams } from "@angular/common/http";
 import { Injectable, inject, signal } from "@angular/core";
 import { Observable, catchError, map, of, tap } from "rxjs";
 import { ApiConfig } from "../../core/api/api.config";
 import { HttpErrorHandler } from "../../core/api/http-error.handler";
-import { ApiResponse, Category, PaginatedResponse } from "../../core/models";
+import { ApiResponse, Category, CategoryRequest, PaginatedResponse } from "../../core/models";
 
 interface CategoryFilters {
   search?: string;
@@ -17,7 +17,6 @@ export class CategoriesService {
   private apiConfig = inject(ApiConfig);
   private errorHandler = inject(HttpErrorHandler);
 
-  // State signals
   categories = signal<Category[]>([]);
   selectedCategory = signal<Category | null>(null);
   loading = signal<boolean>(false);
@@ -26,11 +25,9 @@ export class CategoriesService {
   page = signal<number>(1);
   pageSize = signal<number>(10);
 
-  // Computed values
   activeCategories = signal<Category[]>([]);
   mainCategories = signal<Category[]>([]);
 
-  // Load categories with pagination and filters
   loadCategories(page: number = 1, pageSize: number = 10, filters?: CategoryFilters) {
     this.loading.set(true);
     this.error.set(null);
@@ -58,7 +55,6 @@ export class CategoriesService {
       this.page.set(page);
       this.pageSize.set(size);
       
-      // Update computed signals
       this.activeCategories.set(items.filter(c => c.isActive));
       this.mainCategories.set(items.filter(c => !c.parentCategory));
       
@@ -66,7 +62,6 @@ export class CategoriesService {
     });
   }
 
-  // Get category by ID
   getCategoryById(categoryId: string): Observable<Category> {
     this.loading.set(true);
     return this.http.get<ApiResponse<Category>>(
@@ -85,8 +80,7 @@ export class CategoriesService {
     );
   }
 
-  // Create new category
-  createCategory(categoryData: Partial<Category>): Observable<Category> {
+  createCategory(categoryData: CategoryRequest): Observable<Category> {
     this.loading.set(true);
     return this.http.post<ApiResponse<Category>>(
       this.apiConfig.getEndpoint('/categories'),
@@ -106,8 +100,7 @@ export class CategoriesService {
     );
   }
 
-  // Update category
-  updateCategory(categoryId: string, categoryData: Partial<Category>): Observable<Category> {
+  updateCategory(categoryId: string, categoryData: CategoryRequest): Observable<Category> {
     this.loading.set(true);
     return this.http.put<ApiResponse<Category>>(
       this.apiConfig.getEndpoint(`/categories/${categoryId}`),
@@ -129,7 +122,6 @@ export class CategoriesService {
     );
   }
 
-  // Delete category
   deleteCategory(categoryId: string): Observable<void> {
     return this.http.delete<ApiResponse<void>>(
       this.apiConfig.getEndpoint(`/categories/${categoryId}`)
@@ -151,7 +143,6 @@ export class CategoriesService {
     );
   }
 
-  // Activate/Deactivate category
   updateCategoryStatus(categoryId: string, isActive: boolean): Observable<Category> {
     return this.http.patch<ApiResponse<Category>>(
       this.apiConfig.getEndpoint(`/categories/${categoryId}/status`),
@@ -171,7 +162,6 @@ export class CategoriesService {
     );
   }
 
-  // Get category tree
   getCategoryTree(): Observable<Category[]> {
     return this.http.get<ApiResponse<Category[]>>(
       this.apiConfig.getEndpoint('/categories/tree')
@@ -184,7 +174,6 @@ export class CategoriesService {
     );
   }
 
-  // Get category statistics
   getCategoryStatistics(): Observable<any> {
     return this.http.get<ApiResponse<any>>(
       this.apiConfig.getEndpoint('/categories/statistics')
@@ -197,7 +186,6 @@ export class CategoriesService {
     );
   }
 
-  // Search categories
   searchCategories(query: string): Observable<Category[]> {
     return this.http.get<ApiResponse<Category[]>>(
       this.apiConfig.getEndpoint('/categories/search'),
@@ -211,7 +199,6 @@ export class CategoriesService {
     );
   }
 
-  // Set pagination
   setPage(newPage: number) {
     this.page.set(newPage);
     this.loadCategories(newPage, this.pageSize());
@@ -222,7 +209,6 @@ export class CategoriesService {
     this.loadCategories(1, newPageSize);
   }
 
-  // Initialize
   initialize() {
     this.loadCategories();
   }

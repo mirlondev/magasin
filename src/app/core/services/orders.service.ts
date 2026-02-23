@@ -1,10 +1,8 @@
-// orders.service.ts - Updated to support new payment system
-
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
-import { Order, OrderRequest, PaymentRequest, Payment, ApiResponse, PaymentMethod, PaginatedResponse, OrderStatus, PaymentStatus } from '../models';
+import { Order, OrderRequest, PaymentRequest, Payment, ApiResponse, PaymentMethod, PaginatedResponse, OrderStatus, PaymentStatus, OrderResponse, OrderItemRequest } from '../models';
 import { ApiConfig } from '../api/api.config';
 import { HttpErrorHandler } from '../api/http-error.handler';
 import { AuthService } from './auth.service';
@@ -33,25 +31,18 @@ export class OrderService {
   private errorHandler = inject(HttpErrorHandler);
   private authService = inject(AuthService);
 
-  // State signals
-  orders = signal<Order[]>([]);
-  selectedOrder = signal<Order | null>(null);
+  orders = signal<OrderResponse[]>([]);
+  selectedOrder = signal<OrderResponse | null>(null);
   loading = signal<boolean>(false);
   error = signal<string | null>(null);
   total = signal<number>(0);
   page = signal<number>(1);
   pageSize = signal<number>(10);
 
-  // Computed views (manually updated for now)
-  pendingOrders = signal<Order[]>([]);
-  processingOrders = signal<Order[]>([]);
-  completedOrders = signal<Order[]>([]);
+  pendingOrders = signal<OrderResponse[]>([]);
+  processingOrders = signal<OrderResponse[]>([]);
+  completedOrders = signal<OrderResponse[]>([]);
 
-
-
-  /**
-   * Load orders with pagination and filters
-   */
   loadOrders(page: number = 1, pageSize: number = 10, filters?: OrderFilters) {
     this.loading.set(true);
     this.error.set(null);
@@ -62,7 +53,7 @@ export class OrderService {
       ...filters 
     };
 
-    this.http.get<ApiResponse<PaginatedResponse<Order>>>(
+    this.http.get<ApiResponse<PaginatedResponse<OrderResponse>>>(
       this.apiConfig.getEndpoint('/orders'),
       { params }
     ).pipe(
@@ -84,21 +75,18 @@ export class OrderService {
     });
   }
 
-  private updateComputedSignals(items: Order[] = this.orders()) {
+  private updateComputedSignals(items: OrderResponse[] = this.orders()) {
     this.pendingOrders.set(items.filter(o => o.status === OrderStatus.PENDING));
     this.processingOrders.set(items.filter(o => o.status === OrderStatus.PROCESSING));
     this.completedOrders.set(items.filter(o => o.status === OrderStatus.COMPLETED));
   }
 
-  /**
-   * Process payment (backward compatibility for some components)
-   */
   processPayment(orderId: string, paymentData: {
     paymentMethod: PaymentMethod;
     amountPaid: number;
     changeAmount?: number;
-  }): Observable<Order> {
-    return this.http.post<ApiResponse<Order>>(
+  }): Observable<OrderResponse> {
+    return this.http.post<ApiResponse<OrderResponse>>(
       this.apiConfig.getEndpoint(`/orders/${orderId}/process-payment`),
       paymentData
     ).pipe(
@@ -111,11 +99,8 @@ export class OrderService {
     );
   }
 
-  /**
-   * Update order status
-   */
-  updateOrderStatus(orderId: string, status: OrderStatus): Observable<Order> {
-    return this.http.patch<ApiResponse<Order>>(
+  updateOrderStatus(orderId: string, status: OrderStatus): Observable<OrderResponse> {
+    return this.http.patch<ApiResponse<OrderResponse>>(
       this.apiConfig.getEndpoint(`/orders/${orderId}/status`),
       { status }
     ).pipe(
@@ -128,29 +113,10 @@ export class OrderService {
     );
   }
 
-
-
-  markAsCompleted(orderId: string): Observable<Order> {
+  markAsCompleted(orderId: string): Observable<OrderResponse> {
     return this.completeOrder(orderId);
   }
 
-  /**
-   * Cancel order
-   */
-
-
-  /**
-   * Generate invoice
-   */
-  // generateInvoice(orderId: string): Observable<Blob> {
-  //   return this.http.get(
-  //     this.apiConfig.getEndpoint(`/invoices/order/${orderId}`),
-  //     { responseType: 'blob' }
-  //   );
-  // }
-/**
-   * Generate and download receipt PDF (for cash payments)
-   */
   generateReceipt(orderId: string): Observable<Blob> {
     return this.http.get(
       this.apiConfig.getEndpoint(`/receipts/order/${orderId}/pdf`),
@@ -163,9 +129,6 @@ export class OrderService {
     );
   }
 
-  /**
-   * Generate thermal printer receipt
-   */
   generateThermalReceipt(orderId: string): Observable<Blob> {
     return this.http.get(
       this.apiConfig.getEndpoint(`/receipts/order/${orderId}/thermal`),
@@ -178,9 +141,6 @@ export class OrderService {
     );
   }
 
-  /**
-   * Get receipt as text (for display or thermal printer)
-   */
   getReceiptText(orderId: string): Observable<string> {
     return this.http.get(
       this.apiConfig.getEndpoint(`/receipts/order/${orderId}/text`),
@@ -193,11 +153,6 @@ export class OrderService {
     );
   }
 
-  // ==================== INVOICE METHODS ====================
-
-  /**
-   * Generate invoice for an order (for credit sales)
-   */
   generateInvoice(orderId: string): Observable<any> {
     return this.http.post<ApiResponse<any>>(
       this.apiConfig.getEndpoint(`/invoices/order/${orderId}`),
@@ -211,9 +166,6 @@ export class OrderService {
     );
   }
 
-  /**
-   * Download invoice PDF
-   */
   downloadInvoicePdf(invoiceId: string): Observable<Blob> {
     return this.http.get(
       this.apiConfig.getEndpoint(`/invoices/${invoiceId}/pdf`),
@@ -226,9 +178,6 @@ export class OrderService {
     );
   }
 
-  /**
-   * Get invoice by order ID
-   */
   getInvoiceByOrder(orderId: string): Observable<any> {
     return this.http.get<ApiResponse<any>>(
       this.apiConfig.getEndpoint(`/invoices/order/${orderId}`)
@@ -241,12 +190,6 @@ export class OrderService {
     );
   }
 
-  // ==================== HELPER METHODS ====================
-
-  /**
-  /**
-   * Delete order
-   */
   deleteOrder(orderId: string): Observable<void> {
     return this.http.delete<ApiResponse<void>>(
       this.apiConfig.getEndpoint(`/orders/${orderId}`)
@@ -267,11 +210,6 @@ export class OrderService {
     );
   }
 
-
-
-  /**
-   * Get order statistics
-   */
   getOrderStatistics(period: 'today' | 'week' | 'month' | 'year'): Observable<any> {
     return this.http.get<ApiResponse<any>>(
       this.apiConfig.getEndpoint(`/orders/statistics/${period}`)
@@ -284,11 +222,8 @@ export class OrderService {
     );
   }
 
-  /**
-   * Search orders
-   */
-  searchOrders(query: string): Observable<Order[]> {
-    return this.http.get<ApiResponse<Order[]>>(
+  searchOrders(query: string): Observable<OrderResponse[]> {
+    return this.http.get<ApiResponse<OrderResponse[]>>(
       this.apiConfig.getEndpoint('/orders/search'),
       { params: { q: query } }
     ).pipe(
@@ -310,16 +245,11 @@ export class OrderService {
     this.loadOrders(1, newPageSize);
   }
 
-  ///NEW MWTHODS 
-
-    /**
-   * ✅ Create order WITHOUT payment
-   */
-  createOrder(request: OrderRequest): Observable<Order> {
+  createOrder(request: OrderRequest): Observable<OrderResponse> {
     this.loading.set(true);
-    return this.http.post<ApiResponse<Order>>(
+    return this.http.post<ApiResponse<OrderResponse>>(
       this.apiConfig.getEndpoint('/orders'),
-      request  // No payment info here!
+      request
     ).pipe(
       map(response => response.data),
       tap(order => {
@@ -335,13 +265,10 @@ export class OrderService {
     );
   }
 
-  /**
-   * ✅ Create order WITH initial payment (convenience method)
-   */
   createOrderWithPayment(
     orderRequest: OrderRequest, 
     paymentRequest?: PaymentRequest
-  ): Observable<Order> {
+  ): Observable<OrderResponse> {
     this.loading.set(true);
     
     const request: CreateOrderWithPaymentRequest = {
@@ -349,7 +276,7 @@ export class OrderService {
       paymentRequest
     };
 
-    return this.http.post<ApiResponse<Order>>(
+    return this.http.post<ApiResponse<OrderResponse>>(
       this.apiConfig.getEndpoint('/orders/with-payment'),
       request
     ).pipe(
@@ -367,12 +294,9 @@ export class OrderService {
     );
   }
 
-  /**
-   * ✅ Add payment to existing order
-   */
-  addPayment(orderId: string, payment: PaymentRequest): Observable<Order> {
+  addPayment(orderId: string, payment: PaymentRequest): Observable<OrderResponse> {
     this.loading.set(true);
-    return this.http.post<ApiResponse<Order>>(
+    return this.http.post<ApiResponse<OrderResponse>>(
       this.apiConfig.getEndpoint(`/orders/${orderId}/payments`),
       payment
     ).pipe(
@@ -389,11 +313,8 @@ export class OrderService {
     );
   }
 
-  /**
-   * Complete order
-   */
-  completeOrder(orderId: string): Observable<Order> {
-    return this.http.patch<ApiResponse<Order>>(
+  completeOrder(orderId: string): Observable<OrderResponse> {
+    return this.http.patch<ApiResponse<OrderResponse>>(
       this.apiConfig.getEndpoint(`/orders/${orderId}/complete`),
       {}
     ).pipe(
@@ -406,9 +327,6 @@ export class OrderService {
     );
   }
 
-  /**
-   * Cancel order
-   */
   cancelOrder(orderId: string): Observable<void> {
     return this.http.delete<ApiResponse<void>>(
       this.apiConfig.getEndpoint(`/orders/${orderId}`)
@@ -424,12 +342,9 @@ export class OrderService {
     );
   }
 
-  /**
-   * Get order by ID
-   */
-  getOrderById(orderId: string): Observable<Order> {
+  getOrderById(orderId: string): Observable<OrderResponse> {
     this.loading.set(true);
-    return this.http.get<ApiResponse<Order>>(
+    return this.http.get<ApiResponse<OrderResponse>>(
       this.apiConfig.getEndpoint(`/orders/${orderId}`)
     ).pipe(
       map(response => response.data),
@@ -445,11 +360,7 @@ export class OrderService {
     );
   }
 
- 
-
-
-  // Helper methods
-  private updateLocalOrder(updatedOrder: Order) {
+  private updateLocalOrder(updatedOrder: OrderResponse) {
     this.orders.update(orders => 
       orders.map(order => order.orderId === updatedOrder.orderId ? updatedOrder : order)
     );
@@ -457,5 +368,4 @@ export class OrderService {
       this.selectedOrder.set(updatedOrder);
     }
   }
-
 }

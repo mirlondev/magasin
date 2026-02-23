@@ -24,40 +24,40 @@ import { ScanBarcodeComponent } from "../../../../shared/components/scan-barcode
 
 
 interface TransferItem {
-    inventoryId: string;
-    productId: string;
-    productName: string;
-    sku: string;
-    availableQuantity: number;
-    transferQuantity: number;
-    unitCost: number;
-    sourceStoreId: string;
-    sourceStoreName: string;
+  inventoryId: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  availableQuantity: number;
+  transferQuantity: number;
+  unitCost: number;
+  sourceStoreId: string;
+  sourceStoreName?: string;
 }
 
 @Component({
-    selector: 'app-stock-transfer',
-    standalone: true,
-    imports: [
-        CommonModule,
-        FormsModule,
-        ReactiveFormsModule,
-        RouterLink,
-        ButtonModule,
-        CardModule,
-        InputNumberModule,
-        TextareaModule,
-        SelectModule,
-        TableModule,
-        ToastModule,
-        BadgeModule,
-        ProgressBarModule,
-        StepperModule,
-        TooltipModule,
-        ScanBarcodeComponent,
-        XafPipe
-    ],
-    template: `
+  selector: 'app-stock-transfer',
+  standalone: true,
+  imports: [
+    CommonModule,
+    FormsModule,
+    ReactiveFormsModule,
+    RouterLink,
+    ButtonModule,
+    CardModule,
+    InputNumberModule,
+    TextareaModule,
+    SelectModule,
+    TableModule,
+    ToastModule,
+    BadgeModule,
+    ProgressBarModule,
+    StepperModule,
+    TooltipModule,
+    ScanBarcodeComponent,
+    XafPipe
+  ],
+  template: `
     <div class="p-4 max-w-7xl mx-auto">
       <p-toast />
       
@@ -317,186 +317,186 @@ interface TransferItem {
   `
 })
 export class StockTransferComponent implements OnInit {
-    private inventoryService = inject(InventoryService);
-    private storesService = inject(StoresService);
-    private authService = inject(AuthService);
-    private route = inject(ActivatedRoute);
-    private router = inject(Router);
-    private messageService = inject(MessageService);
+  private inventoryService = inject(InventoryService);
+  private storesService = inject(StoresService);
+  private authService = inject(AuthService);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private messageService = inject(MessageService);
 
-    // State
-    currentStep = signal(0);
-    selectedSourceStore = signal<string>('');
-    selectedTargetStore = signal<string>('');
-    sourceStores = signal<Store[]>([]);
-    targetStores = signal<Store[]>([]);
-    sourceInventoryCount = signal(0);
-    searchTerm = signal('');
-    transferItems = signal<TransferItem[]>([]);
-    transferNotes = signal('');
-    processing = signal(false);
+  // State
+  currentStep = signal(0);
+  selectedSourceStore = signal<string>('');
+  selectedTargetStore = signal<string>('');
+  sourceStores = signal<Store[]>([]);
+  targetStores = signal<Store[]>([]);
+  sourceInventoryCount = signal(0);
+  searchTerm = signal('');
+  transferItems = signal<TransferItem[]>([]);
+  transferNotes = signal('');
+  processing = signal(false);
 
-    ngOnInit() {
-        this.loadStores();
+  ngOnInit() {
+    this.loadStores();
 
-        // Pre-fill from route if provided
-        const id = this.route.snapshot.paramMap.get('id');
-        if (id) {
-            this.loadInventoryForTransfer(id);
+    // Pre-fill from route if provided
+    const id = this.route.snapshot.paramMap.get('id');
+    if (id) {
+      this.loadInventoryForTransfer(id);
+    }
+  }
+
+  loadStores() {
+    this.storesService.loadStores(1, 100).subscribe({
+      next: (response) => {
+        const stores = response.items || [];
+        this.sourceStores.set(stores);
+      }
+    });
+  }
+
+  onSourceStoreChange() {
+    // Update target stores (exclude source)
+    const sourceId = this.selectedSourceStore();
+    this.targetStores.set(this.sourceStores().filter(s => s.storeId !== sourceId));
+
+    // Load inventory count for source
+    this.inventoryService.getStatistics(sourceId).subscribe({
+      next: (stats) => {
+        this.sourceInventoryCount.set(stats?.totalItems || 0);
+      }
+    });
+  }
+
+  loadInventoryForTransfer(inventoryId: string) {
+    this.inventoryService.getInventoryItemById(inventoryId).subscribe({
+      next: (item) => {
+        this.selectedSourceStore.set(item.storeId ?? '');
+        this.onSourceStoreChange();
+
+        this.addItem({
+          inventoryId: item.inventoryId,
+          productId: item.productId,
+          productName: item.productName ?? '',
+          sku: item.productSku ?? '',
+          availableQuantity: item.quantity,
+          transferQuantity: 1,
+          unitCost: item.unitCost || 0,
+          sourceStoreId: item.storeId ?? '',
+          sourceStoreName: item.storeName
+        });
+      }
+    });
+  }
+
+  onBarcodeScanned(barcode: string) {
+    // Search in source store inventory
+    this.inventoryService.searchInventory(barcode).subscribe({
+      next: (items) => {
+        const item = items.find(i => i.storeId === this.selectedSourceStore());
+        if (item) {
+          this.addItem({
+            inventoryId: item.inventoryId,
+            productId: item.productId,
+            productName: item.productName ?? '',
+            sku: item.productSku ?? '',
+            availableQuantity: item.quantity,
+            transferQuantity: 1,
+            unitCost: item.unitCost || 0,
+            sourceStoreId: item.storeId ?? '',
+            sourceStoreName: item.storeName
+          });
+        } else {
+          this.messageService.add({
+            severity: 'warn',
+            summary: 'Non trouvé',
+            detail: 'Produit non trouvé dans le magasin source'
+          });
         }
+      }
+    });
+  }
+
+  searchProduct() {
+    if (!this.searchTerm()) return;
+    this.onBarcodeScanned(this.searchTerm());
+  }
+
+  addItem(item: TransferItem) {
+    // Check if already added
+    const existing = this.transferItems().find(i => i.inventoryId === item.inventoryId);
+    if (existing) {
+      this.messageService.add({
+        severity: 'info',
+        summary: 'Déjà ajouté',
+        detail: 'Ce produit est déjà dans la liste'
+      });
+      return;
     }
 
-    loadStores() {
-        this.storesService.loadStores(1, 100).subscribe({
-            next: (response) => {
-                const stores = response.items || [];
-                this.sourceStores.set(stores);
-            }
-        });
-    }
+    this.transferItems.update(items => [...items, item]);
+  }
 
-    onSourceStoreChange() {
-        // Update target stores (exclude source)
-        const sourceId = this.selectedSourceStore();
-        this.targetStores.set(this.sourceStores().filter(s => s.storeId !== sourceId));
+  removeItem(index: number) {
+    this.transferItems.update(items => items.filter((_, i) => i !== index));
+  }
 
-        // Load inventory count for source
-        this.inventoryService.getStatistics(sourceId).subscribe({
-            next: (stats) => {
-                this.sourceInventoryCount.set(stats?.totalItems || 0);
-            }
-        });
-    }
+  totalTransferQuantity(): number {
+    return this.transferItems().reduce((sum, item) => sum + item.transferQuantity, 0);
+  }
 
-    loadInventoryForTransfer(inventoryId: string) {
-        this.inventoryService.getInventoryItemById(inventoryId).subscribe({
-            next: (item) => {
-                this.selectedSourceStore.set(item.storeId);
-                this.onSourceStoreChange();
+  totalTransferValue(): number {
+    return this.transferItems().reduce((sum, item) => sum + (item.transferQuantity * item.unitCost), 0);
+  }
 
-                this.addItem({
-                    inventoryId: item.inventoryId,
-                    productId: item.productId,
-                    productName: item.productName,
-                    sku: item.productSku,
-                    availableQuantity: item.quantity,
-                    transferQuantity: 1,
-                    unitCost: item.unitCost || 0,
-                    sourceStoreId: item.storeId,
-                    sourceStoreName: item.storeName
-                });
-            }
-        });
-    }
+  getStoreName(storeId: string): string {
+    const store = this.sourceStores().find(s => s.storeId === storeId);
+    return store?.name || 'Inconnu';
+  }
 
-    onBarcodeScanned(barcode: string) {
-        // Search in source store inventory
-        this.inventoryService.searchInventory(barcode).subscribe({
-            next: (items) => {
-                const item = items.find(i => i.storeId === this.selectedSourceStore());
-                if (item) {
-                    this.addItem({
-                        inventoryId: item.inventoryId,
-                        productId: item.productId,
-                        productName: item.productName,
-                        sku: item.productSku,
-                        availableQuantity: item.quantity,
-                        transferQuantity: 1,
-                        unitCost: item.unitCost || 0,
-                        sourceStoreId: item.storeId,
-                        sourceStoreName: item.storeName
-                    });
-                } else {
-                    this.messageService.add({
-                        severity: 'warn',
-                        summary: 'Non trouvé',
-                        detail: 'Produit non trouvé dans le magasin source'
-                    });
-                }
-            }
-        });
-    }
+  executeTransfer() {
+    this.processing.set(true);
 
-    searchProduct() {
-        if (!this.searchTerm()) return;
-        this.onBarcodeScanned(this.searchTerm());
-    }
+    const transferData = {
+      sourceStoreId: this.selectedSourceStore(),
+      targetStoreId: this.selectedTargetStore(),
+      items: this.transferItems().map(item => ({
+        inventoryId: item.inventoryId,
+        quantity: item.transferQuantity
+      })),
+      notes: this.transferNotes()
+    };
 
-    addItem(item: TransferItem) {
-        // Check if already added
-        const existing = this.transferItems().find(i => i.inventoryId === item.inventoryId);
-        if (existing) {
+    // Process transfers one by one or use bulk endpoint
+    let completed = 0;
+    this.transferItems().forEach(item => {
+      this.inventoryService.transfer(
+        item.inventoryId,
+        this.selectedTargetStore(),
+        item.transferQuantity,
+        this.transferNotes()
+      ).subscribe({
+        next: () => {
+          completed++;
+          if (completed === this.transferItems().length) {
+            this.processing.set(false);
             this.messageService.add({
-                severity: 'info',
-                summary: 'Déjà ajouté',
-                detail: 'Ce produit est déjà dans la liste'
+              severity: 'success',
+              summary: 'Succès',
+              detail: 'Transfert effectué avec succès'
             });
-            return;
+            this.router.navigate(['/inventory']);
+          }
+        },
+        error: () => {
+          this.processing.set(false);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Erreur',
+            detail: 'Erreur lors du transfert'
+          });
         }
-
-        this.transferItems.update(items => [...items, item]);
-    }
-
-    removeItem(index: number) {
-        this.transferItems.update(items => items.filter((_, i) => i !== index));
-    }
-
-    totalTransferQuantity(): number {
-        return this.transferItems().reduce((sum, item) => sum + item.transferQuantity, 0);
-    }
-
-    totalTransferValue(): number {
-        return this.transferItems().reduce((sum, item) => sum + (item.transferQuantity * item.unitCost), 0);
-    }
-
-    getStoreName(storeId: string): string {
-        const store = this.sourceStores().find(s => s.storeId === storeId);
-        return store?.name || 'Inconnu';
-    }
-
-    executeTransfer() {
-        this.processing.set(true);
-
-        const transferData = {
-            sourceStoreId: this.selectedSourceStore(),
-            targetStoreId: this.selectedTargetStore(),
-            items: this.transferItems().map(item => ({
-                inventoryId: item.inventoryId,
-                quantity: item.transferQuantity
-            })),
-            notes: this.transferNotes()
-        };
-
-        // Process transfers one by one or use bulk endpoint
-        let completed = 0;
-        this.transferItems().forEach(item => {
-            this.inventoryService.transfer(
-                item.inventoryId,
-                this.selectedTargetStore(),
-                item.transferQuantity,
-                this.transferNotes()
-            ).subscribe({
-                next: () => {
-                    completed++;
-                    if (completed === this.transferItems().length) {
-                        this.processing.set(false);
-                        this.messageService.add({
-                            severity: 'success',
-                            summary: 'Succès',
-                            detail: 'Transfert effectué avec succès'
-                        });
-                        this.router.navigate(['/inventory']);
-                    }
-                },
-                error: () => {
-                    this.processing.set(false);
-                    this.messageService.add({
-                        severity: 'error',
-                        summary: 'Erreur',
-                        detail: 'Erreur lors du transfert'
-                    });
-                }
-            });
-        });
-    }
+      });
+    });
+  }
 }

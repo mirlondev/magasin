@@ -45,11 +45,11 @@ export class InventoryService {
   currentFilters = signal<InventoryFilters>({});
 
   // Computed values
-  lowStockItems = computed(() => this.inventoryItems().filter(item => item.lowStock));
-  outOfStockItems = computed(() => this.inventoryItems().filter(item => item.outOfStock));
-  overStockItems = computed(() => this.inventoryItems().filter(item => item.overStock));
+  lowStockItems = computed(() => this.inventoryItems().filter(item => item.isLowStock));
+  outOfStockItems = computed(() => this.inventoryItems().filter(item => item.isOutOfStock));
+  overStockItems = computed(() => this.inventoryItems().filter(item => item.isOverStock));
   selectedItems = signal<Inventory[]>([]);
-  totalValue = computed(() => 
+  totalValue = computed(() =>
     this.inventoryItems().reduce((sum, item) => sum + (item.totalValue || 0), 0)
   );
 
@@ -62,10 +62,10 @@ export class InventoryService {
       this.currentFilters.set(filters);
     }
 
-    const params: any = { 
-      page: page - 1, 
-      size: pageSize, 
-      ...this.currentFilters() 
+    const params: any = {
+      page: page - 1,
+      size: pageSize,
+      ...this.currentFilters()
     };
 
     this.http.get<ApiResponse<PaginatedResponse<Inventory>>>(
@@ -143,7 +143,7 @@ export class InventoryService {
     ).pipe(
       map(response => response.data),
       tap(updatedItem => {
-        this.inventoryItems.update(items => 
+        this.inventoryItems.update(items =>
           items.map(item => item.inventoryId === itemId ? updatedItem : item)
         );
         this.selectedItem.set(updatedItem);
@@ -164,14 +164,14 @@ export class InventoryService {
     ).pipe(
       map(response => response.data),
       tap(() => {
-        this.inventoryItems.update(items => 
+        this.inventoryItems.update(items =>
           items.filter(item => item.inventoryId !== itemId)
         );
         this.total.update(total => total - 1);
         if (this.selectedItem()?.inventoryId === itemId) {
           this.selectedItem.set(null);
         }
-        this.selectedItems.update(selected => 
+        this.selectedItems.update(selected =>
           selected.filter(item => item.inventoryId !== itemId)
         );
       }),
@@ -194,7 +194,7 @@ export class InventoryService {
         if (response.success) {
           switch (operation.operation) {
             case 'delete':
-              this.inventoryItems.update(items => 
+              this.inventoryItems.update(items =>
                 items.filter(item => !operation.inventoryIds.includes(item.inventoryId))
               );
               this.total.update(total => total - operation.inventoryIds.length);
@@ -225,7 +225,7 @@ export class InventoryService {
     ).pipe(
       map(response => response.data),
       tap(updatedItem => {
-        this.inventoryItems.update(items => 
+        this.inventoryItems.update(items =>
           items.map(item => item.inventoryId === itemId ? updatedItem : item)
         );
         this.selectedItem.set(updatedItem);
@@ -248,7 +248,7 @@ export class InventoryService {
     ).pipe(
       map(response => response.data),
       tap(updatedItem => {
-        this.inventoryItems.update(items => 
+        this.inventoryItems.update(items =>
           items.map(item => item.inventoryId === itemId ? updatedItem : item)
         );
         this.selectedItem.set(updatedItem);
@@ -299,7 +299,7 @@ export class InventoryService {
     ).pipe(
       map(response => response.data),
       tap(updatedItem => {
-        this.inventoryItems.update(items => 
+        this.inventoryItems.update(items =>
           items.map(item => item.inventoryId === itemId ? updatedItem : item)
         );
         this.selectedItem.set(updatedItem);
@@ -415,7 +415,7 @@ export class InventoryService {
     if (options) {
       formData.append('options', JSON.stringify(options));
     }
-    
+
     return this.http.post<ApiResponse<BulkOperationResponse>>(
       this.apiConfig.getEndpoint('/inventory/import'),
       formData
@@ -431,7 +431,7 @@ export class InventoryService {
   // Export inventory to file
   exportInventory(format: 'csv' | 'excel' = 'csv', filters?: InventoryFilters): Observable<Blob> {
     const params: any = { format, ...filters };
-    
+
     return this.http.get(
       this.apiConfig.getEndpoint('/inventory/export'),
       { params, responseType: 'blob' }
@@ -530,107 +530,107 @@ export class InventoryService {
   }
 
   getInventoryByProductAndStore(productId: string, storeId: string): Observable<Inventory> {
-  return this.http.get<ApiResponse<Inventory>>(
-    this.apiConfig.getEndpoint(`/inventory/product/${productId}/store/${storeId}`)
-  ).pipe(
-    map(response => response.data),
-    catchError(error => {
-      this.errorHandler.handleError(error, 'Chargement de l\'inventaire');
-      throw error;
-    })
-  );
-}
-
-// Get low stock inventory
-getLowStockInventory(threshold: number = 10, page: number = 1, pageSize: number = 25): Observable<PaginatedResponse<Inventory>> {
-  const params = new HttpParams()
-    .set('threshold', threshold.toString())
-    .set('page', (page - 1).toString())
-    .set('size', pageSize.toString());
-
-  return this.http.get<ApiResponse<PaginatedResponse<Inventory>>>(
-    this.apiConfig.getEndpoint('/inventory/low-stock'),
-    { params }
-  ).pipe(
-    map(response => response.data),
-    catchError(error => {
-      this.errorHandler.handleError(error, 'Chargement des stocks faibles');
-      return of({ items: [], total: 0, page: 0, size: 0, totalPages: 0 });
-    })
-  );
-}
-
-// Get inventory by status
-getInventoryByStatus(status: string, page: number = 1, pageSize: number = 25): Observable<PaginatedResponse<Inventory>> {
-  const params = new HttpParams()
-    .set('page', (page - 1).toString())
-    .set('size', pageSize.toString());
-
-  return this.http.get<ApiResponse<PaginatedResponse<Inventory>>>(
-    this.apiConfig.getEndpoint(`/inventory/status/${status}`),
-    { params }
-  ).pipe(
-    map(response => response.data),
-    catchError(error => {
-      this.errorHandler.handleError(error, 'Chargement de l\'inventaire');
-      return of({ items: [], total: 0, page: 0, size: 0, totalPages: 0 });
-    })
-  );
-}
-
-// Update stock with operation type (set, add, subtract)
-updateStock(inventoryId: string, quantity: number, operation: 'set' | 'add' | 'subtract' = 'set', notes?: string): Observable<Inventory> {
-  let params = new HttpParams()
-    .set('quantity', quantity.toString())
-    .set('operation', operation);
-  
-  if (notes) {
-    params = params.set('notes', notes);
+    return this.http.get<ApiResponse<Inventory>>(
+      this.apiConfig.getEndpoint(`/inventory/product/${productId}/store/${storeId}`)
+    ).pipe(
+      map(response => response.data),
+      catchError(error => {
+        this.errorHandler.handleError(error, 'Chargement de l\'inventaire');
+        throw error;
+      })
+    );
   }
 
-  return this.http.patch<ApiResponse<Inventory>>(
-    this.apiConfig.getEndpoint(`/inventory/${inventoryId}/stock`),
-    {},
-    { params }
-  ).pipe(
-    map(response => response.data),
-    tap(updatedItem => {
-      this.inventoryItems.update(items => 
-        items.map(item => item.inventoryId === inventoryId ? updatedItem : item)
-      );
-    }),
-    catchError(error => {
-      this.errorHandler.handleError(error, 'Mise à jour du stock');
-      throw error;
-    })
-  );
-}
+  // Get low stock inventory
+  getLowStockInventory(threshold: number = 10, page: number = 1, pageSize: number = 25): Observable<PaginatedResponse<Inventory>> {
+    const params = new HttpParams()
+      .set('threshold', threshold.toString())
+      .set('page', (page - 1).toString())
+      .set('size', pageSize.toString());
 
-// Get inventory summary for a store
-getInventorySummary(storeId: string): Observable<any> {
-  return this.http.get<ApiResponse<any>>(
-    this.apiConfig.getEndpoint(`/inventory/store/${storeId}/summary`)
-  ).pipe(
-    map(response => response.data),
-    catchError(error => {
-      this.errorHandler.handleError(error, 'Chargement du résumé');
-      throw error;
-    })
-  );
-}
+    return this.http.get<ApiResponse<PaginatedResponse<Inventory>>>(
+      this.apiConfig.getEndpoint('/inventory/low-stock'),
+      { params }
+    ).pipe(
+      map(response => response.data),
+      catchError(error => {
+        this.errorHandler.handleError(error, 'Chargement des stocks faibles');
+        return of({ items: [], total: 0, page: 0, size: 0, totalPages: 0 });
+      })
+    );
+  }
 
-// Get total stock value for a store
-getTotalStockValue(storeId: string): Observable<number> {
-  return this.http.get<ApiResponse<number>>(
-    this.apiConfig.getEndpoint(`/inventory/store/${storeId}/value`)
-  ).pipe(
-    map(response => response.data),
-    catchError(error => {
-      this.errorHandler.handleError(error, 'Chargement de la valeur');
-      return of(0);
-    })
-  );
-}
+  // Get inventory by status
+  getInventoryByStatus(status: string, page: number = 1, pageSize: number = 25): Observable<PaginatedResponse<Inventory>> {
+    const params = new HttpParams()
+      .set('page', (page - 1).toString())
+      .set('size', pageSize.toString());
+
+    return this.http.get<ApiResponse<PaginatedResponse<Inventory>>>(
+      this.apiConfig.getEndpoint(`/inventory/status/${status}`),
+      { params }
+    ).pipe(
+      map(response => response.data),
+      catchError(error => {
+        this.errorHandler.handleError(error, 'Chargement de l\'inventaire');
+        return of({ items: [], total: 0, page: 0, size: 0, totalPages: 0 });
+      })
+    );
+  }
+
+  // Update stock with operation type (set, add, subtract)
+  updateStock(inventoryId: string, quantity: number, operation: 'set' | 'add' | 'subtract' = 'set', notes?: string): Observable<Inventory> {
+    let params = new HttpParams()
+      .set('quantity', quantity.toString())
+      .set('operation', operation);
+
+    if (notes) {
+      params = params.set('notes', notes);
+    }
+
+    return this.http.patch<ApiResponse<Inventory>>(
+      this.apiConfig.getEndpoint(`/inventory/${inventoryId}/stock`),
+      {},
+      { params }
+    ).pipe(
+      map(response => response.data),
+      tap(updatedItem => {
+        this.inventoryItems.update(items =>
+          items.map(item => item.inventoryId === inventoryId ? updatedItem : item)
+        );
+      }),
+      catchError(error => {
+        this.errorHandler.handleError(error, 'Mise à jour du stock');
+        throw error;
+      })
+    );
+  }
+
+  // Get inventory summary for a store
+  getInventorySummary(storeId: string): Observable<any> {
+    return this.http.get<ApiResponse<any>>(
+      this.apiConfig.getEndpoint(`/inventory/store/${storeId}/summary`)
+    ).pipe(
+      map(response => response.data),
+      catchError(error => {
+        this.errorHandler.handleError(error, 'Chargement du résumé');
+        throw error;
+      })
+    );
+  }
+
+  // Get total stock value for a store
+  getTotalStockValue(storeId: string): Observable<number> {
+    return this.http.get<ApiResponse<number>>(
+      this.apiConfig.getEndpoint(`/inventory/store/${storeId}/value`)
+    ).pipe(
+      map(response => response.data),
+      catchError(error => {
+        this.errorHandler.handleError(error, 'Chargement de la valeur');
+        return of(0);
+      })
+    );
+  }
 
   // Initialize
   initialize() {

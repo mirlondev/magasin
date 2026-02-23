@@ -306,6 +306,12 @@ export class SidebarContentComponent {
           icon: 'pi-file',
           routerLink: '/orders/proforma',
           roles: [EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN]
+        },
+                {
+          label: 'Factures',
+          icon: 'pi-file',
+          routerLink: '/orders/documents-sale',
+          roles: [EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN]
         }
       ]
     },

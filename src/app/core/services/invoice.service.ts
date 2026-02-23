@@ -1,6 +1,3 @@
-// core/services/invoice.service.ts
-// Covers ALL /invoices/* endpoints from InvoiceController.java
-
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
@@ -8,44 +5,7 @@ import { catchError, map, tap } from 'rxjs/operators';
 import { ApiConfig } from '../api/api.config';
 import { HttpErrorHandler } from '../api/http-error.handler';
 import { AuthService } from './auth.service';
-import { ApiResponse } from '../models';
-
-// ── Response shape matching InvoiceResponse.java record ───────────────────
-export interface InvoiceResponse {
-  invoiceId: string;
-  invoiceNumber: string;
-  invoiceType: 'CREDIT_SALE' | 'PROFORMA';
-  status: InvoiceStatus;
-  orderId: string;
-  customerId?: string;
-  customerName?: string;
-  storeId?: string;
-  invoiceDate: string;
-  paymentDueDate?: string;
-  validityDays?: number;
-  subtotal: number;
-  taxAmount: number;
-  discountAmount: number;
-  totalAmount: number;
-  amountPaid: number;
-  amountDue: number;
-  paymentMethod?: string;
-  notes?: string;
-  printCount: number;
-  pdfFilename?: string;
-  pdfPath?: string;
-  convertedToSale: boolean;
-  isActive: boolean;
-}
-
-export type InvoiceStatus =
-  | 'DRAFT'
-  | 'ISSUED'
-  | 'PAID'
-  | 'PARTIALLY_PAID'
-  | 'OVERDUE'
-  | 'CANCELLED'
-  | 'CONVERTED';
+import { ApiResponse, InvoiceResponse, InvoiceStatus, InvoiceType } from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class InvoiceService {
@@ -54,22 +14,11 @@ export class InvoiceService {
   private errorHandler = inject(HttpErrorHandler);
   private authService = inject(AuthService);
 
-  // ── State ─────────────────────────────────────────────────────────────────
   invoices = signal<InvoiceResponse[]>([]);
   selectedInvoice = signal<InvoiceResponse | null>(null);
   loading = signal(false);
   error = signal<string | null>(null);
 
-  // ==========================================================================
-  // GENERATION
-  // POST /invoices/order/{orderId}
-  // ==========================================================================
-
-  /**
-   * Generates an invoice for a CREDIT_SALE or PROFORMA order.
-   * Uses InvoiceDocumentStrategy / ProformaDocumentStrategy via DocumentStrategyFactory.
-   * Returns invoice metadata — PDF is fetched separately via downloadPdf().
-   */
   generateInvoice(orderId: string): Observable<InvoiceResponse> {
     this.loading.set(true);
     return this.http
@@ -91,20 +40,6 @@ export class InvoiceService {
       );
   }
 
-  // ==========================================================================
-  // READ
-  // GET /invoices/{invoiceId}
-  // GET /invoices/number/{invoiceNumber}
-  // GET /invoices/order/{orderId}
-  // GET /invoices/customer/{customerId}
-  // GET /invoices/store/{storeId}
-  // GET /invoices/status/{status}
-  // GET /invoices/date-range
-  // GET /invoices/overdue
-  // GET /invoices/outstanding-amount
-  // ==========================================================================
-
-  /** GET /invoices/{invoiceId} */
   getById(invoiceId: string): Observable<InvoiceResponse> {
     return this.http
       .get<ApiResponse<InvoiceResponse>>(
@@ -120,7 +55,6 @@ export class InvoiceService {
       );
   }
 
-  /** GET /invoices/number/{invoiceNumber} */
   getByNumber(invoiceNumber: string): Observable<InvoiceResponse> {
     return this.http
       .get<ApiResponse<InvoiceResponse>>(
@@ -135,7 +69,6 @@ export class InvoiceService {
       );
   }
 
-  /** GET /invoices/order/{orderId} */
   getByOrder(orderId: string): Observable<InvoiceResponse> {
     return this.http
       .get<ApiResponse<InvoiceResponse>>(
@@ -151,7 +84,6 @@ export class InvoiceService {
       );
   }
 
-  /** GET /invoices/customer/{customerId} */
   getByCustomer(customerId: string): Observable<InvoiceResponse[]> {
     return this.http
       .get<ApiResponse<InvoiceResponse[]>>(
@@ -167,7 +99,6 @@ export class InvoiceService {
       );
   }
 
-  /** GET /invoices/store/{storeId} */
   getByStore(storeId: string): Observable<InvoiceResponse[]> {
     return this.http
       .get<ApiResponse<InvoiceResponse[]>>(
@@ -183,7 +114,6 @@ export class InvoiceService {
       );
   }
 
-  /** GET /invoices/status/{status} */
   getByStatus(status: InvoiceStatus): Observable<InvoiceResponse[]> {
     return this.http
       .get<ApiResponse<InvoiceResponse[]>>(
@@ -199,10 +129,6 @@ export class InvoiceService {
       );
   }
 
-  /**
-   * GET /invoices/date-range?startDate=yyyy-MM-dd&endDate=yyyy-MM-dd
-   * Dates must be ISO format: '2026-01-01'
-   */
   getByDateRange(startDate: string, endDate: string): Observable<InvoiceResponse[]> {
     return this.http
       .get<ApiResponse<InvoiceResponse[]>>(
@@ -219,7 +145,6 @@ export class InvoiceService {
       );
   }
 
-  /** GET /invoices/overdue */
   getOverdue(): Observable<InvoiceResponse[]> {
     return this.http
       .get<ApiResponse<InvoiceResponse[]>>(
@@ -235,7 +160,6 @@ export class InvoiceService {
       );
   }
 
-  /** GET /invoices/outstanding-amount → returns Double (not wrapped in ApiResponse) */
   getOutstandingAmount(): Observable<number> {
     return this.http
       .get<number>(this.apiConfig.getEndpoint('/invoices/outstanding-amount'))
@@ -247,18 +171,6 @@ export class InvoiceService {
       );
   }
 
-  // ==========================================================================
-  // PDF
-  // GET  /invoices/{invoiceId}/pdf              → download by invoiceId
-  // GET  /invoices/order/{orderId}/pdf          → download by orderId (cached)
-  // POST /invoices/order/{orderId}/pdf/regenerate
-  // ==========================================================================
-
-  /**
-   * GET /invoices/{invoiceId}/pdf
-   * Downloads the PDF for a known invoiceId.
-   * Opens inline in browser (Content-Disposition: inline from backend).
-   */
   downloadPdfById(invoiceId: string): Observable<Blob> {
     return this.http
       .get(this.apiConfig.getEndpoint(`/invoices/${invoiceId}/pdf`), {
@@ -272,11 +184,6 @@ export class InvoiceService {
       );
   }
 
-  /**
-   * GET /invoices/order/{orderId}/pdf
-   * File-cached endpoint — checks disk first, generates only if needed.
-   * Preferred for order-level document access.
-   */
   downloadPdfByOrder(orderId: string): Observable<Blob> {
     return this.http
       .get(this.apiConfig.getEndpoint(`/invoices/order/${orderId}/pdf`), {
@@ -290,10 +197,6 @@ export class InvoiceService {
       );
   }
 
-  /**
-   * POST /invoices/order/{orderId}/pdf/regenerate
-   * Forces PDF regeneration even if file already exists on disk.
-   */
   regeneratePdf(orderId: string): Observable<Blob> {
     return this.http
       .post(
@@ -309,20 +212,6 @@ export class InvoiceService {
       );
   }
 
-  // ==========================================================================
-  // LIFECYCLE MUTATIONS
-  // PUT  /invoices/{invoiceId}/status
-  // PUT  /invoices/{invoiceId}/mark-paid
-  // PUT  /invoices/{invoiceId}/cancel
-  // POST /invoices/{proformaId}/convert-to-sale
-  // POST /invoices/{invoiceId}/reprint
-  // POST /invoices/{invoiceId}/send-email
-  // ==========================================================================
-
-  /**
-   * PUT /invoices/{invoiceId}/status?status=PAID
-   * Valid values: DRAFT | ISSUED | PAID | PARTIALLY_PAID | OVERDUE | CANCELLED
-   */
   updateStatus(invoiceId: string, status: InvoiceStatus): Observable<InvoiceResponse> {
     return this.http
       .put<ApiResponse<InvoiceResponse>>(
@@ -340,10 +229,6 @@ export class InvoiceService {
       );
   }
 
-  /**
-   * PUT /invoices/{invoiceId}/mark-paid?paymentMethod=CASH
-   * Valid paymentMethod values match PaymentMethod enum on backend.
-   */
   markAsPaid(invoiceId: string, paymentMethod: string): Observable<InvoiceResponse> {
     return this.http
       .put<ApiResponse<InvoiceResponse>>(
@@ -361,10 +246,6 @@ export class InvoiceService {
       );
   }
 
-  /**
-   * PUT /invoices/{invoiceId}/cancel
-   * Not allowed if invoice is already PAID (use credit note instead).
-   */
   cancel(invoiceId: string): Observable<InvoiceResponse> {
     return this.http
       .put<ApiResponse<InvoiceResponse>>(
@@ -381,10 +262,6 @@ export class InvoiceService {
       );
   }
 
-  /**
-   * POST /invoices/{proformaId}/convert-to-sale
-   * Converts a PROFORMA invoice into a real CREDIT_SALE invoice.
-   */
   convertProformaToSale(proformaId: string): Observable<InvoiceResponse> {
     return this.http
       .post<ApiResponse<InvoiceResponse>>(
@@ -401,10 +278,6 @@ export class InvoiceService {
       );
   }
 
-  /**
-   * POST /invoices/{invoiceId}/reprint
-   * Increments print counter, returns updated invoice metadata.
-   */
   reprint(invoiceId: string): Observable<InvoiceResponse> {
     return this.http
       .post<ApiResponse<InvoiceResponse>>(
@@ -421,10 +294,6 @@ export class InvoiceService {
       );
   }
 
-  /**
-   * POST /invoices/{invoiceId}/send-email?email=recipient@example.com
-   * Backend generates PDF and sends it; returns 200 on success, 500 on error.
-   */
   sendByEmail(invoiceId: string, email: string): Observable<void> {
     return this.http
       .post<void>(
@@ -440,11 +309,6 @@ export class InvoiceService {
       );
   }
 
-  // ==========================================================================
-  // UI HELPERS
-  // ==========================================================================
-
-  /** Opens PDF in a new browser tab (authenticated). */
   openPdfInTab(invoiceId: string): void {
     const token = this.authService.getToken();
     const headers = new HttpHeaders({ Authorization: `Bearer ${token}` });
@@ -465,7 +329,6 @@ export class InvoiceService {
       });
   }
 
-  /** Downloads PDF to disk. Uses orderId-based cached endpoint. */
   savePdfToDisk(orderId: string, filename?: string): void {
     const token = this.authService.getToken();
     const headers = new HttpHeaders({ Authorization: `Bearer ${token}` });
@@ -518,10 +381,6 @@ export class InvoiceService {
     };
     return map[status] ?? 'secondary';
   }
-
-  // ==========================================================================
-  // PRIVATE
-  // ==========================================================================
 
   private updateLocalInvoice(updated: InvoiceResponse) {
     this.invoices.update((list) =>

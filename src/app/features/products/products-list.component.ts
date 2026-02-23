@@ -29,7 +29,7 @@ import { AuthService } from "../../core/services/auth.service";
 import { ProductsService } from "../../core/services/products.service";
 import { CategoriesService } from "../../core/services/categories.service";
 import { ThemeService, Theme } from "../../core/services/theme.service";
-import { Category, EmployeeRole } from "../../core/models";
+import { Category, EmployeeRole, Product, ProductRequest } from "../../core/models";
 import { XafPipe } from "../../core/pipes/xaf-currency-pipe";
 import { TableSkeletonComponent, CardSkeletonComponent } from "../../shared/components/skeletons/skeleton-loader.component";
 import { ColorScheme } from "@primeuix/themes/types";
@@ -358,7 +358,7 @@ export class ProductsListComponent implements OnInit {
   }
 
   // Toggle product status
-  toggleProductStatus(product: any) {
+  toggleProductStatus(product: ProductRequest) {
     const newStatus = !product.isActive;
     const action = newStatus ? 'activer' : 'désactiver';
 
@@ -367,7 +367,7 @@ export class ProductsListComponent implements OnInit {
       header: 'Confirmation',
       icon: 'pi pi-exclamation-triangle',
       accept: () => {
-        this.productsService.updateProduct(product.productId, { isActive: newStatus }).subscribe({
+        this.productsService.updateProduct(product.productId, { ...product, isActive: newStatus }).subscribe({
           next: () => {
             this.messageService.add({
               severity: 'success',

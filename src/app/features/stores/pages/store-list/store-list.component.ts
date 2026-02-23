@@ -12,7 +12,7 @@ import { TableModule } from "primeng/table";
 import { TagModule } from "primeng/tag";
 import { ToastModule } from "primeng/toast";
 import { ToolbarModule } from "primeng/toolbar";
-import { EmployeeRole, Store, StoreStatus, StoreType } from "../../../../core/models";
+import { EmployeeRole, Store, StoreStatus, StoreType, StoreRequest } from "../../../../core/models";
 import { AuthService } from "../../../../core/services/auth.service";
 import { StoresService } from "../../../../core/services/stores.service";
 import { StoreFormComponent } from "../../components/store-form.component";
@@ -34,7 +34,7 @@ import { StoreFormComponent } from "../../components/store-form.component";
     ToastModule,
     StoreFormComponent,
     SelectModule
-],
+  ],
   template: `
     <div class="p-4">
       <p-toast />
@@ -308,19 +308,19 @@ export class StoreListComponent implements OnInit {
   private role = this.authService.currentUser()?.userRole;
 
   canCreate = computed(() => {
-    return  this.role  === EmployeeRole.ADMIN ||  this.role  === EmployeeRole.STORE_ADMIN;
+    return this.role === EmployeeRole.ADMIN || this.role === EmployeeRole.STORE_ADMIN;
   });
 
   canEdit = computed(() => {
-    return  this.role  === EmployeeRole.ADMIN ||  this.role  === EmployeeRole.STORE_ADMIN;
+    return this.role === EmployeeRole.ADMIN || this.role === EmployeeRole.STORE_ADMIN;
   });
 
   canDelete = computed(() => {
-    return this.role=== EmployeeRole.ADMIN;
+    return this.role === EmployeeRole.ADMIN;
   });
 
   canManageStatus = computed(() => {
-    return this.role === EmployeeRole.ADMIN ||  this.role  === EmployeeRole.STORE_ADMIN;
+    return this.role === EmployeeRole.ADMIN || this.role === EmployeeRole.STORE_ADMIN;
   });
 
   ngOnInit() {
@@ -332,7 +332,7 @@ export class StoreListComponent implements OnInit {
     return type === StoreType.SHOP ? 'Boutique' : 'Entrepôt';
   }
 
-  getStoreTypeSeverity(type: StoreType): 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast'  {
+  getStoreTypeSeverity(type: StoreType): 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast' {
     return type === StoreType.SHOP ? 'info' : 'warn';
   }
 
@@ -345,7 +345,7 @@ export class StoreListComponent implements OnInit {
     }
   }
 
-  getStatusSeverity(status: StoreStatus):  'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast' {
+  getStatusSeverity(status: StoreStatus): 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast' {
     switch (status) {
       case StoreStatus.ACTIVE: return 'success';
       case StoreStatus.CLOSED: return 'danger';
@@ -376,7 +376,7 @@ export class StoreListComponent implements OnInit {
     if (this.searchTerm()) filters.search = this.searchTerm();
     if (this.selectedType()) filters.type = this.selectedType();
     if (this.selectedStatus()) filters.status = this.selectedStatus();
-    
+
     this.storesService.loadStores(1, this.pageSize(), filters).subscribe();
   }
 
@@ -400,17 +400,17 @@ export class StoreListComponent implements OnInit {
   }
 
   onSave(storeData: Partial<Store>) {
-    const operation = this.isEditing() 
-      ? this.storesService.updateStore(this.selectedStore()!.storeId, storeData)
-      : this.storesService.createStore(storeData);
+    const operation = this.isEditing()
+      ? this.storesService.updateStore(this.selectedStore()!.storeId, storeData as StoreRequest)
+      : this.storesService.createStore(storeData as StoreRequest);
 
     operation.subscribe({
       next: () => {
         this.messageService.add({
           severity: 'success',
           summary: 'Succès',
-          detail: this.isEditing() 
-            ? 'Magasin mis à jour avec succès' 
+          detail: this.isEditing()
+            ? 'Magasin mis à jour avec succès'
             : 'Magasin créé avec succès'
         });
         this.displayDialog.set(false);

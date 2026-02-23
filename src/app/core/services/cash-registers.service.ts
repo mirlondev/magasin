@@ -11,17 +11,17 @@ export class CashRegistersService {
   private apiConfig = inject(ApiConfig);
   private errorHandler = inject(HttpErrorHandler);
 
-  // State signals
   cashRegisters = signal<CashRegister[]>([]);
   selectedCashRegister = signal<CashRegister | null>(null);
   loading = signal<boolean>(false);
   error = signal<string | null>(null);
 
-  // Get all cash registers for a store
   getCashRegistersByStore(storeId: string): Observable<CashRegister[]> {
     this.loading.set(true);
+    this.error.set(null);
+    
     return this.http.get<ApiResponse<CashRegister[]>>(
-      this.apiConfig.getEndpoint(`/cash-registers/store/${storeId}`)
+      this.apiConfig.getEndpoint(`stores/${storeId}/cash-registers`)
     ).pipe(
       map(response => response.data || []),
       tap(registers => {
@@ -30,17 +30,18 @@ export class CashRegistersService {
       }),
       catchError(error => {
         this.loading.set(false);
-        this.errorHandler.handleError(error, 'Chargement des caisses');
+        this.error.set(this.errorHandler.handleError(error, 'Chargement des caisses'));
         return of([]);
       })
     );
   }
 
-  // Get active cash registers only
   getActiveCashRegistersByStore(storeId: string): Observable<CashRegister[]> {
     this.loading.set(true);
+    this.error.set(null);
+    
     return this.http.get<ApiResponse<CashRegister[]>>(
-      this.apiConfig.getEndpoint(`/cash-registers/store/${storeId}/active`)
+      this.apiConfig.getEndpoint(`stores/${storeId}/cash-registers?isActive=true`)
     ).pipe(
       map(response => response.data || []),
       tap(registers => {
@@ -49,17 +50,18 @@ export class CashRegistersService {
       }),
       catchError(error => {
         this.loading.set(false);
-        this.errorHandler.handleError(error, 'Chargement des caisses actives');
+        this.error.set(this.errorHandler.handleError(error, 'Chargement des caisses actives'));
         return of([]);
       })
     );
   }
 
-  // Get cash register by ID
   getCashRegisterById(cashRegisterId: string): Observable<CashRegister | null> {
     this.loading.set(true);
+    this.error.set(null);
+    
     return this.http.get<ApiResponse<CashRegister>>(
-      this.apiConfig.getEndpoint(`/cash-registers/${cashRegisterId}`)
+      this.apiConfig.getEndpoint(`cash-registers/${cashRegisterId}`)
     ).pipe(
       map(response => response.data),
       tap(register => {
@@ -68,17 +70,18 @@ export class CashRegistersService {
       }),
       catchError(error => {
         this.loading.set(false);
-        this.errorHandler.handleError(error, 'Chargement de la caisse');
+        this.error.set(this.errorHandler.handleError(error, 'Chargement de la caisse'));
         return of(null);
       })
     );
   }
 
-  // Create new cash register
   createCashRegister(request: CashRegisterRequest): Observable<CashRegister> {
     this.loading.set(true);
+    this.error.set(null);
+    
     return this.http.post<ApiResponse<CashRegister>>(
-      this.apiConfig.getEndpoint('/cash-registers'),
+      this.apiConfig.getEndpoint('cash-registers'),
       request
     ).pipe(
       map(response => response.data),
@@ -88,16 +91,17 @@ export class CashRegistersService {
       }),
       catchError(error => {
         this.loading.set(false);
-        this.errorHandler.handleError(error, 'Création de la caisse');
+        this.error.set(this.errorHandler.handleError(error, 'Création de la caisse'));
         throw error;
       })
     );
   }
 
-  // Update cash register
   updateCashRegister(cashRegisterId: string, request: CashRegisterRequest): Observable<CashRegister> {
+    this.error.set(null);
+    
     return this.http.put<ApiResponse<CashRegister>>(
-      this.apiConfig.getEndpoint(`/cash-registers/${cashRegisterId}`),
+      this.apiConfig.getEndpoint(`cash-registers/${cashRegisterId}`),
       request
     ).pipe(
       map(response => response.data),
@@ -105,77 +109,97 @@ export class CashRegistersService {
         this.cashRegisters.update(regs =>
           regs.map(r => r.cashRegisterId === cashRegisterId ? updated : r)
         );
+        if (this.selectedCashRegister()?.cashRegisterId === cashRegisterId) {
+          this.selectedCashRegister.set(updated);
+        }
       }),
       catchError(error => {
-        this.errorHandler.handleError(error, 'Mise à jour de la caisse');
+        this.error.set(this.errorHandler.handleError(error, 'Mise à jour de la caisse'));
         throw error;
       })
     );
   }
 
-  // Delete cash register
   deleteCashRegister(cashRegisterId: string): Observable<void> {
     return this.http.delete<ApiResponse<void>>(
-      this.apiConfig.getEndpoint(`/cash-registers/${cashRegisterId}`)
+      this.apiConfig.getEndpoint(`cash-registers/${cashRegisterId}`)
     ).pipe(
-      map(() => { }),
+      map(() => void 0),
       tap(() => {
         this.cashRegisters.update(regs =>
           regs.filter(r => r.cashRegisterId !== cashRegisterId)
         );
+        if (this.selectedCashRegister()?.cashRegisterId === cashRegisterId) {
+          this.selectedCashRegister.set(null);
+        }
       }),
       catchError(error => {
-        this.errorHandler.handleError(error, 'Suppression de la caisse');
+        this.error.set(this.errorHandler.handleError(error, 'Suppression de la caisse'));
         throw error;
       })
     );
   }
 
-  // Activate cash register
   activateCashRegister(cashRegisterId: string): Observable<void> {
-    return this.http.patch<ApiResponse<void>>(
-      this.apiConfig.getEndpoint(`/cash-registers/${cashRegisterId}/activate`),
+    return this.http.patch<ApiResponse<CashRegister>>(
+      this.apiConfig.getEndpoint(`cash-registers/${cashRegisterId}/activate`),
       {}
     ).pipe(
-      map(() => { }),
+      map(() => void 0),
       tap(() => {
         this.cashRegisters.update(regs =>
           regs.map(r => r.cashRegisterId === cashRegisterId ? { ...r, isActive: true } : r)
         );
+        if (this.selectedCashRegister()?.cashRegisterId === cashRegisterId) {
+          this.selectedCashRegister.update(reg => reg ? { ...reg, isActive: true } : null);
+        }
       }),
       catchError(error => {
-        this.errorHandler.handleError(error, 'Activation de la caisse');
+        this.error.set(this.errorHandler.handleError(error, 'Activation de la caisse'));
         throw error;
       })
     );
   }
 
-  // Deactivate cash register
   deactivateCashRegister(cashRegisterId: string): Observable<void> {
-    return this.http.patch<ApiResponse<void>>(
-      this.apiConfig.getEndpoint(`/cash-registers/${cashRegisterId}/deactivate`),
+    return this.http.patch<ApiResponse<CashRegister>>(
+      this.apiConfig.getEndpoint(`cash-registers/${cashRegisterId}/deactivate`),
       {}
     ).pipe(
-      map(() => { }),
+      map(() => void 0),
       tap(() => {
         this.cashRegisters.update(regs =>
           regs.map(r => r.cashRegisterId === cashRegisterId ? { ...r, isActive: false } : r)
         );
+        if (this.selectedCashRegister()?.cashRegisterId === cashRegisterId) {
+          this.selectedCashRegister.update(reg => reg ? { ...reg, isActive: false } : null);
+        }
       }),
       catchError(error => {
-        this.errorHandler.handleError(error, 'Désactivation de la caisse');
+        this.error.set(this.errorHandler.handleError(error, 'Désactivation de la caisse'));
         throw error;
       })
     );
   }
 
-  // Check if cash register is available (no open shift)
   isCashRegisterAvailable(cashRegisterId: string): Observable<boolean> {
     return this.http.get<ApiResponse<boolean>>(
-      this.apiConfig.getEndpoint(`/shift-reports/cash-register/${cashRegisterId}/open`)
+      this.apiConfig.getEndpoint(`cash-registers/${cashRegisterId}/available`)
     ).pipe(
-      map(response => !response.data), // Si pas de shift ouvert, disponible
-      catchError(() => of(true)) // En cas d'erreur, considérer comme disponible
+      map(response => response.data ?? true),
+      catchError(() => of(true))
+    );
+  }
+
+  getCashRegistersWithOpenShifts(storeId: string): Observable<CashRegister[]> {
+    return this.http.get<ApiResponse<CashRegister[]>>(
+      this.apiConfig.getEndpoint(`stores/${storeId}/cash-registers/with-open-shifts`)
+    ).pipe(
+      map(response => response.data || []),
+      catchError(error => {
+        this.errorHandler.handleError(error, 'Chargement des caisses occupées');
+        return of([]);
+      })
     );
   }
 }

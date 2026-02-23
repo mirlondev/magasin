@@ -5,23 +5,29 @@ import { ButtonModule } from "primeng/button";
 import { InputNumberModule } from "primeng/inputnumber";
 import { InputTextModule } from "primeng/inputtext";
 import { Select } from "primeng/select";
-import { Store, StoreStatus, StoreType } from "../../../core/models";
+import { Store, StoreStatus, StoreType, User } from "../../../core/models";
 
-interface StoreFormData {
+
+export interface StoreFormData {
+  storeId?: string;
   name: string;
+  address: string;
+  city?: string;
+  postalCode?: string;
+  country?: string;
   storeType: StoreType;
   status: StoreStatus;
-  phone: string;
-  email: string;
-  address: string;
-  city: string;
-  postalCode: string;
-  country: string;
-  openingHours: string;
-  latitude: number | null;
-  longitude: number | null;
+  phone?: string;
+  email?: string;
+  openingHours?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  storeAdminId?: string;
+  storeAdmin?: User;
 }
-
 @Component({
   selector: 'app-store-form',
   standalone: true,
@@ -32,7 +38,7 @@ interface StoreFormData {
     InputTextModule,
     InputNumberModule,
     Select
-],
+  ],
   template: `
     <form #storeForm="ngForm" (ngSubmit)="onSubmit()" class="p-fluid">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -257,7 +263,7 @@ export class StoreFormComponent {
   @Output() cancel = new EventEmitter<void>();
 
   submitted = false;
-  
+
   formData = signal<StoreFormData>({
     name: '',
     storeType: StoreType.SHOP,
@@ -307,7 +313,7 @@ export class StoreFormComponent {
 
     // Validate required fields
     const requiredFields = ['name', 'storeType', 'status', 'phone', 'email', 'address', 'city', 'country'];
-    const isValid = requiredFields.every(field => 
+    const isValid = requiredFields.every(field =>
       this.formData()[field as keyof StoreFormData]
     );
 
@@ -318,7 +324,7 @@ export class StoreFormComponent {
         longitude: this.formData().longitude || undefined,
         isActive: this.formData().status === StoreStatus.ACTIVE
       };
-      
+
       this.save.emit(storeData);
     }
   }

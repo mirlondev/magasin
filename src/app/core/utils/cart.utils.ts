@@ -7,7 +7,7 @@ export function cartCount(cart: CartItem[]): number {
 
 export function cartSubtotal(cart: CartItem[]): number {
   return cart.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
+    (sum, item) => sum + (item.product?.price ?? 0) * (item.quantity ?? 0),
     0
   );
 }

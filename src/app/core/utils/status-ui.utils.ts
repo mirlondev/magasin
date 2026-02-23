@@ -35,20 +35,22 @@ export function getStatusSeverity<T extends string | number>(
 }
 
 export function getProductImage(product: Product): string {
-    return product?.imageUrl || '';
+  return product?.imageUrl || '';
 }
 
 export function getStockSeverity(product: Product): 'danger' | 'warn' | 'success' {
-    if (!product) return 'danger';
-    if (product.quantity <= 0) return 'danger';
-    if (product.quantity <= (product.minStock || 5)) return 'warn';
-    return 'success';
+  if (!product) return 'danger';
+  const qty = product.quantity ?? 0;
+  if (qty <= 0) return 'danger';
+  if (qty <= (product.minStock || 5)) return 'warn';
+  return 'success';
 }
 
 export function getStockLabel(product: Product): string {
-    if (!product) return 'N/A';
-    if (product.quantity <= 0) return 'Rupture';
-    if (product.quantity <= (product.minStock || 5)) return 'Faible';
-    return 'En stock';
+  if (!product) return 'N/A';
+  const qty = product.quantity ?? 0;
+  if (qty <= 0) return 'Rupture';
+  if (qty <= (product.minStock || 5)) return 'Faible';
+  return 'En stock';
 }
 

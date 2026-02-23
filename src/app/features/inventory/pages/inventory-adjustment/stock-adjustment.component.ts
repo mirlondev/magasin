@@ -343,7 +343,7 @@ export class StockAdjustmentComponent implements OnInit {
   searchTerm = signal('');
   adjustmentItems = signal<AdjustmentItem[]>([]);
   expectedTotalItems = signal(0); // For physical count progress
-  
+
   // Inventory ID from route (for single item adjustment)
   routeInventoryId = signal<string | null>(null);
 
@@ -366,9 +366,9 @@ export class StockAdjustmentComponent implements OnInit {
 
   startAdjustment() {
     if (!this.adjustmentType()) return;
-    
+
     this.adjustmentStarted.set(true);
-    
+
     if (this.isPhysicalCount()) {
       // Load all inventory items for physical count
       this.loadAllInventory();
@@ -381,8 +381,8 @@ export class StockAdjustmentComponent implements OnInit {
         this.addItem({
           inventoryId: item.inventoryId,
           productId: item.productId,
-          productName: item.productName,
-          sku: item.productSku,
+          productName: item.productName ?? '',
+          sku: item.productSku ?? '',
           currentQuantity: item.quantity,
           countedQuantity: item.quantity,
           difference: 0,
@@ -420,7 +420,7 @@ export class StockAdjustmentComponent implements OnInit {
 
   searchProduct() {
     if (!this.searchTerm()) return;
-    
+
     this.productsService.searchProducts(this.searchTerm()).subscribe({
       next: (products) => {
         if (products.length === 1) {
@@ -460,11 +460,11 @@ export class StockAdjustmentComponent implements OnInit {
             inventoryId: inventory.inventoryId,
             productId: product.productId,
             productName: product.name,
-            sku: product.sku,
+            sku: product.sku ?? '',
             currentQuantity: inventory.quantity,
             countedQuantity: inventory.quantity,
             difference: 0,
-            unitCost: inventory.unitCost || product.costPrice || 0,
+            unitCost: inventory.unitCost || product.price || 0,
             reason: '',
             notes: ''
           });
@@ -475,11 +475,11 @@ export class StockAdjustmentComponent implements OnInit {
             inventoryId: '',
             productId: product.productId,
             productName: product.name,
-            sku: product.sku,
+            sku: product.sku ?? '',
             currentQuantity: 0,
             countedQuantity: 0,
             difference: 0,
-            unitCost: product.costPrice || 0,
+            unitCost: product.price || 0,
             reason: 'Nouveau produit',
             notes: ''
           });
@@ -514,7 +514,7 @@ export class StockAdjustmentComponent implements OnInit {
 
   confirmAdjustment() {
     const title = this.isPhysicalCount() ? 'Valider l\'inventaire physique' : 'Valider l\'ajustement';
-    const message = this.isPhysicalCount() 
+    const message = this.isPhysicalCount()
       ? `Voulez-vous valider cet inventaire physique de ${this.adjustmentItems().length} articles ?`
       : `Voulez-vous valider cet ajustement de ${this.totalVariance()} unités ?`;
 
@@ -530,7 +530,7 @@ export class StockAdjustmentComponent implements OnInit {
 
   executeAdjustment() {
     const adjustments = this.adjustmentItems().filter(i => i.difference !== 0);
-    
+
     if (adjustments.length === 0) {
       this.messageService.add({
         severity: 'warn',
@@ -545,7 +545,7 @@ export class StockAdjustmentComponent implements OnInit {
     adjustments.forEach(item => {
       const operation = item.difference > 0 ? 'add' : 'subtract';
       const quantity = Math.abs(item.difference);
-      
+
       this.inventoryService.updateStock(item.inventoryId, quantity, operation).subscribe({
         next: () => {
           completed++;

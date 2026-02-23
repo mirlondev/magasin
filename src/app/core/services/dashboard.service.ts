@@ -38,6 +38,10 @@ interface InventoryAlertResponse {
   minQuantity: number;
   alertLevel: 'LOW' | 'OUT_OF_STOCK' | 'OVER_STOCK';
   storeName: string;
+  quantity: number;
+  minStock: number;
+  maxStock: number
+
 }
 
 interface OrderAlertResponse {
@@ -47,6 +51,7 @@ interface OrderAlertResponse {
   totalAmount: number;
   status: string;
   createdAt: string;
+  
 }
 
 interface ActivityLogResponse {
@@ -96,7 +101,7 @@ export class DashboardService {
   });
 
   recentOrders = signal<Order[]>([]);
-  lowStockProducts = signal<Product[]>([]);
+  lowStockProducts = signal<Product[] | undefined >([]);
   salesChartData = signal<any>(null);
   loading = signal<boolean>(false);
   currentStoreId = signal<string | null>(null);

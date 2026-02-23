@@ -272,7 +272,7 @@ import { getStockLabel, getStockSeverity } from "../../../core/utils/status-ui.u
                         </div>
                       </td>
                       <td class="p-3 text-right">
-                        <div class="font-bold">{{ (item.product.price * item.quantity) | xaf }}</div>
+                        <div class="font-bold">{{ ((item.product.price || 0) * item.quantity) | xaf }}</div>
                       </td>
                       <td class="p-3">
                         <button pButton 
@@ -667,7 +667,7 @@ export class OrderCreateComponent implements OnInit {
   );
 
   cartSubtotal = computed(() =>
-    this.cart().reduce((sum, item) => sum + (item.product.price * item.quantity), 0)
+    this.cart().reduce((sum, item) => sum + ((item.product.price || 0) * item.quantity), 0)
   );
 
   // ✅ Tax calculated on discounted amount
@@ -817,7 +817,7 @@ export class OrderCreateComponent implements OnInit {
       return;
     }
 
-    if (product.quantity <= 0) {
+    if ((product.quantity || 0) <= 0) {
       this.messageService.add({
         severity: 'warn',
         summary: 'Stock insuffisant',
@@ -833,7 +833,7 @@ export class OrderCreateComponent implements OnInit {
 
     if (existingIndex > -1) {
       const newQuantity = currentCart[existingIndex].quantity + 1;
-      if (newQuantity > product.quantity) {
+      if (newQuantity > (product.quantity || 0)) {
         this.messageService.add({
           severity: 'warn',
           summary: 'Stock insuffisant',
@@ -875,7 +875,7 @@ export class OrderCreateComponent implements OnInit {
     const newQty = item.quantity + delta;
 
     if (newQty > 0) {
-      if (newQty > item.product.quantity) {
+      if (newQty > (item.product.quantity || 0)) {
         this.messageService.add({
           severity: 'warn',
           summary: 'Stock insuffisant',
@@ -967,7 +967,7 @@ export class OrderCreateComponent implements OnInit {
 
     // STEP 3: Create order first
     this.ordersService.createOrder(orderRequest).subscribe({
-      next: (order: Order) => {
+      next: (order: any) => {
         console.log('Order created:', order);
         // STEP 4: Add payments separately
         this.addPaymentToOrder(order.orderId);

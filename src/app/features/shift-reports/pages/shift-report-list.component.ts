@@ -55,7 +55,7 @@ import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";
                 <p class="text-gray-600 dark:text-gray-400">
                   Session #{{ currentShift()?.shiftNumber }} • 
                   Caisse {{ currentShift()?.cashRegisterNumber || 'N/A' }} •
-                  Ouverte à {{ currentShift()?.startTime | date:'HH:mm' }} • 
+                  Ouverte à {{ currentShift()?.openingTime| date:'HH:mm' }} • 
                   Solde: {{ currentShift()?.actualBalance | xaf }}
                 </p>
               </div>
