@@ -1,0 +1,176 @@
+<p-toast />
+<p-confirmDialog />
+
+<div class="card">
+  <p-toolbar styleClass="mb-4">
+    <div class="p-toolbar-group-start">
+      <h2 class="text-xl font-bold text-gray-800 m-0">Gestion des Clients</h2>
+    </div>
+    <div class="p-toolbar-group-end">
+      <input pInputText 
+        [(ngModel)]="searchQuery" 
+        placeholder="Rechercher (Nom, Email)..." 
+        styleClass="mr-2" 
+        [style.width]="'250px'" />
+      <p-button 
+        label="Nouveau Client" 
+        icon="pi pi-plus" 
+        (onClick)="openNew()" 
+        severity="success" />
+    </div>
+  </p-toolbar>
+
+  <p-table 
+    [value]="filteredCustomers()" 
+    [loading]="loading()" 
+    [paginator]="true" 
+    [rows]="10"
+    [totalRecords]="total()"
+    [rowsPerPageOptions]="[5, 10, 20]"
+    styleClass="p-datatable-striped">
+    
+    <ng-template pHeader>
+      <tr>
+        <th>Nom Complet</th>
+        <th>Contact</th>
+        <th>Fidélité</th>
+        <th>Ville</th>
+        <th>Statut</th>
+        <th>Actions</th>
+      </tr>
+    </ng-template>
+
+    <ng-template pBody let-customer>
+      <tr>
+        <td>
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold"
+                 [ngClass]="{
+                   'bg-blue-500': customer.loyaltyTier === 'PLATINUM',
+                   'bg-yellow-500': customer.loyaltyTier === 'GOLD',
+                   'bg-gray-400': customer.loyaltyTier === 'SILVER',
+                   'bg-orange-500': customer.loyaltyTier === 'BRONZE'
+                 }">
+              {{ customer.firstName.charAt(0) }}{{ customer.lastName.charAt(0) }}
+            </div>
+            <div>
+              <div class="font-bold">{{ customer.firstName }} {{ customer.lastName }}</div>
+              <div class="text-xs text-gray-500">ID: {{ customer.customerId | slice:0:8 }}...</div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <div class="flex flex-col">
+            <span>{{ customer.email }}</span>
+            <span class="text-sm text-gray-500">{{ customer.phone }}</span>
+          </div>
+        </td>
+        <td>
+          <div class="flex flex-col">
+            <span class="text-sm font-bold">{{ customer.loyaltyPoints }} pts</span>
+            <span class="text-xs px-2 py-1 rounded-full w-fit" [ngClass]="getTierColor(customer.loyaltyTier)">
+              {{ customer.loyaltyTier }}
+            </span>
+          </div>
+        </td>
+        <td>{{ customer.city || 'N/A' }}</td>
+        <td>
+          <p-toggleSwitch 
+            [(ngModel)]="customer.isActive" 
+            (onChange)="toggleStatus(customer)" 
+            [disabled]="loading()" />
+        </td>
+        <td>
+          <div class="flex gap-2">
+            <p-button 
+              icon="pi pi-pencil" 
+              severity="secondary" 
+              [text]="true" 
+              [rounded]="true" 
+              (onClick)="editCustomer(customer)" />
+            <p-button 
+              icon="pi pi-trash" 
+              severity="danger" 
+              [text]="true" 
+              [rounded]="true" 
+              (onClick)="deleteCustomer(customer)" />
+          </div>
+        </td>
+      </tr>
+    </ng-template>
+
+    <ng-template pEmptyMessage>
+      <div class="text-center p-4">
+        <i class="pi pi-inbox text-4xl text-gray-400 mb-2"></i>
+        <p>Aucun client trouvé</p>
+      </div>
+    </ng-template>
+  </p-table>
+</div>
+
+<p-dialog 
+  [(visible)]="dialogVisible" 
+  [modal]="true" 
+  [header]="isEditMode() ? 'Modifier le Client' : 'Nouveau Client'" 
+  [style]="{ width: '500px' }">
+  
+  <form [formGroup]="customerForm" class="flex flex-col gap-4">
+    <div class="flex gap-4">
+      <div class="flex-1 flex flex-col gap-2">
+        <label for="firstName">Prénom</label>
+        <input pInputText id="firstName" formControlName="firstName" class="w-full" />
+        @if (customerForm.get('firstName')?.invalid && customerForm.get('firstName')?.touched) {
+          <small class="p-error">Prénom requis</small>
+        }
+      </div>
+      <div class="flex-1 flex flex-col gap-2">
+        <label for="lastName">Nom</label>
+        <input pInputText id="lastName" formControlName="lastName" class="w-full" />
+        @if (customerForm.get('lastName')?.invalid && customerForm.get('lastName')?.touched) {
+          <small class="p-error">Nom requis</small>
+        }
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <label for="email">Email</label>
+      <input pInputText id="email" formControlName="email" class="w-full" />
+      @if (customerForm.get('email')?.invalid && customerForm.get('email')?.touched) {
+        <small class="p-error">Email valide requis</small>
+      }
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <label for="phone">Téléphone</label>
+      <input pInputText id="phone" formControlName="phone" class="w-full" />
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <label for="address">Adresse</label>
+      <input pInputText id="address" formControlName="address" class="w-full" />
+    </div>
+
+    <div class="flex gap-4">
+      <div class="flex-1 flex flex-col gap-2">
+        <label for="city">Ville</label>
+        <input pInputText id="city" formControlName="city" class="w-full" />
+      </div>
+      <div class="flex-1 flex flex-col gap-2">
+        <label for="postalCode">Code Postal</label>
+        <input pInputText id="postalCode" formControlName="postalCode" class="w-full" />
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <p-toggleSwitch formControlName="isActive" />
+      <label>Client Actif</label>
+    </div>
+  </form>
+
+  <ng-template pFooter>
+    <div class="flex justify-end gap-2">
+      <p-button label="Annuler" severity="secondary" (onClick)="dialogVisible.set(false)" [text]="true" />
+      <p-button label="Enregistrer" (onClick)="saveCustomer()" [disabled]="customerForm.invalid" />
+    </div>
+  </ng-template>
+</p-dialog>

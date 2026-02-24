@@ -165,10 +165,9 @@ export class CustomerSelectorComponent implements OnInit {
 
   loadCustomers() {
     this.loading.set(true);
-    this.customersService.loadCustomers(1, 50).subscribe(() => {
-      this.filteredCustomers.set(this.customersService.customers());
-      this.loading.set(false);
-    });
+    this.customersService.loadCustomers(1, 50);
+    this.filteredCustomers.set(this.customersService.customers());
+    this.loading.set(false);
   }
 
   onSearch() {

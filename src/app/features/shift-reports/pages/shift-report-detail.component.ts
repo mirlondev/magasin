@@ -14,7 +14,7 @@ import { TextareaModule } from "primeng/textarea";
 import { TableModule } from "primeng/table";
 import { TagModule } from "primeng/tag";
 import { ToastModule } from "primeng/toast";
-import { EmployeeRole, ShiftStatus, ShiftReportDetail } from "../../../core/models";
+import { EmployeeRole, ShiftStatus } from "../../../core/models";
 import { AuthService } from "../../../core/services/auth.service";
 import { ShiftReportsService } from "../../../core/services/shift-reports.service";
 import { XafPipe } from "../../../core/pipes/xaf-currency-pipe";

@@ -1,20 +1,22 @@
 import { Routes } from "@angular/router";
 import { EmployeeRole } from "../../core/models";
+import { DocumentSaleComponent } from "../../features/orders/pages/document-sale/document-sale.component";
+import { OrderCreateComponent } from "../../features/orders/pages/order-create.component";
 import { OrderDetailComponent } from "../../features/orders/pages/order-detail.component";
 import { OrderListComponent } from "../../features/orders/pages/order-list.component";
-import { OrderCreateComponent } from "../../features/orders/pages/order-create.component";
-import { roleGuard } from "../guards/role-guard";
 import { PosSaleComponent } from "../../features/orders/pages/pos-sale/pos-sale.component";
+import { roleGuard } from "../guards/role-guard";
+import { ShiftOpenGuard } from "../guards/shift-open.guard";
+
 // import { CreditSaleComponent } from "../../features/orders/pages/credit-sale/credit-sale.component";
 // import { ProformaComponent } from "../../features/orders/pages/proforma/proforma.component";
-import { ShiftOpenGuard } from "../guards/shift-open.guard";
-import { DocumentSaleComponent } from "../../features/orders/pages/document-sale/document-sale.component";
 export const ORDERS_ROUTES: Routes = [
-  
-    { path: '',
+
+  {
+    path: '',
     component: OrderListComponent,
     canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER])]
-  
+
   },
   // },
   // {
@@ -23,35 +25,39 @@ export const ORDERS_ROUTES: Routes = [
   //   canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER])]
   // },
 
-      
-      // Sales Pages
-      { path: 'pos-sale', component: PosSaleComponent ,
-       canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER] ), /*ShiftOpenGuard*/]
 
-      },
-      // { path: 'credit-sale', component: CreditSaleComponent,
-      //  canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER])]
-      //  },
-      // { path: 'proforma', component: ProformaComponent,
-      //  canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER])]
-      //  },
-      { path: 'documents-sale', component: DocumentSaleComponent,
-       canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER])]
-       },
+  // Sales Pages
+  {
+    path: 'pos-sale', component: PosSaleComponent,
+    canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER]), /*ShiftOpenGuard*/]
 
-      
-      // Management Pages
-      { path: 'orders', component: OrderListComponent,
-       canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER])]
-       },
-      { path: 'orders/:id', component: OrderDetailComponent,
-       canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER])]
-       },
+  },
+  // { path: 'credit-sale', component: CreditSaleComponent,
+  //  canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER])]
+  //  },
+  // { path: 'proforma', component: ProformaComponent,
+  //  canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER])]
+  //  },
+  {
+    path: 'documents-sale', component: DocumentSaleComponent,
+    canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER])]
+  },
 
-      // { path: ':id/edit', component: OrderEditComponent },
-      // { path: ':id/payment', component: OrderPaymentComponent }
-    
-  
+
+  // Management Pages
+  {
+    path: 'orders', component: OrderListComponent,
+    canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER])]
+  },
+  {
+    path: 'orders/:id', component: OrderDetailComponent,
+    canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER])]
+  },
+
+  // { path: ':id/edit', component: OrderEditComponent },
+  // { path: ':id/payment', component: OrderPaymentComponent }
+
+
   // Redirects for backward compatibility
   { path: 'orders/create', redirectTo: 'orders/pos-sale', pathMatch: 'full' },
   { path: 'orders/pos', redirectTo: 'orders/pos-sale', pathMatch: 'full' },

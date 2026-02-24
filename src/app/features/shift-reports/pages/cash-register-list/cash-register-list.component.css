@@ -1,0 +1,58 @@
+/* src/app/features/cash-registers/cash-register-list.component.css */
+
+:host {
+  display: block;
+}
+
+/* Status badges */
+.status-available {
+  background-color: #4caf50;
+  color: white;
+}
+
+.status-occupied {
+  background-color: #ff9800;
+  color: white;
+}
+
+.status-inactive {
+  background-color: #f44336;
+  color: white;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  ::ng-deep .p-toolbar {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  ::ng-deep .p-toolbar-group-start,
+  ::ng-deep .p-toolbar-group-end {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Table improvements */
+::ng-deep .p-datatable-striped .p-datatable-tbody > tr:nth-child(odd) {
+  background-color: #f9fafb;
+}
+
+::ng-deep .p-datatable-striped .p-datatable-tbody > tr:hover {
+  background-color: #f3f4f6;
+}
+
+/* Card hover effects */
+.surface-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.surface-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}

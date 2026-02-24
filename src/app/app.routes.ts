@@ -54,6 +54,11 @@ export const routes: Routes = [
     
 
     },
+    {
+      path:'customers',
+      canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER])],
+      loadChildren: () => import('./core/routes/customers.routes').then(m => m.CUSTOMERS_ROUTES)
+    },
 
 
       {

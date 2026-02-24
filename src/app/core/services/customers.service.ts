@@ -9,7 +9,6 @@ interface CustomerFilters {
   search?: string;
   isActive?: boolean;
   city?: string;
-  country?: string;
   minLoyaltyPoints?: number;
   maxLoyaltyPoints?: number;
 }
@@ -20,44 +19,35 @@ export class CustomersService {
   private apiConfig = inject(ApiConfig);
   private errorHandler = inject(HttpErrorHandler);
 
+  // State Signals
   customers = signal<Customer[]>([]);
   selectedCustomer = signal<Customer | null>(null);
-  loading = signal<boolean>(false);
+  loading = signal(false);
   error = signal<string | null>(null);
-  total = signal<number>(0);
-  page = signal<number>(1);
-  pageSize = signal<number>(10);
+  total = signal(0);
+  page = signal(1);
+  pageSize = signal(10);
 
-  activeCustomers = signal<Customer[]>([]);
-  topCustomers = signal<Customer[]>([]);
-
-  loadCustomers(page: number = 1, pageSize: number = 10, filters?: CustomerFilters): Observable<PaginatedResponse<Customer>> {
+  loadCustomers(page: number = 1, pageSize: number = 10, filters?: CustomerFilters) {
     this.loading.set(true);
     this.error.set(null);
 
+    // Backend expects 0-based index for page usually, adjusting here
     const params: any = { page: page - 1, size: pageSize, ...filters };
 
-    return this.http.get<ApiResponse<PaginatedResponse<Customer>>>(
+      this.http.get<ApiResponse<PaginatedResponse<Customer>>>(
       this.apiConfig.getEndpoint('/customers'),
       { params }
+              
     ).pipe(
       map(response => response.data),
       tap(data => {
-        const items = Array.isArray(data) ? data : (data?.items || []);
-        const total = Array.isArray(data) ? data.length : (data?.total || 0);
-        const pageNum = Array.isArray(data) ? 1 : (data?.page || 0) + 1;
-        const size = Array.isArray(data) ? items.length : (data?.size || 10);
-
+        const items = data?.items || [];
+        console.log('Fetched customers:', items);
         this.customers.set(items);
-        this.total.set(total);
-        this.page.set(pageNum);
-        this.pageSize.set(size);
-        
-        this.activeCustomers.set(items.filter(c => c.isActive));
-        this.topCustomers.set([...items]
-          .sort((a, b) => b.totalPurchases - a.totalPurchases)
-          .slice(0, 10));
-        
+        this.total.set(data?.total || 0);
+        this.page.set(data?.page + 1); // Convert 0-based back to 1-based for UI
+        this.pageSize.set(data?.size || 10);
         this.loading.set(false);
       }),
       catchError(error => {
@@ -67,7 +57,12 @@ export class CustomersService {
         return of({ items: [], total: 0, page: 0, size: 0, totalPages: 0 });
       })
     );
+    console.log('Loading customers with params:', params);
+    console.log('Current customers before load:',    this.apiConfig.getEndpoint('/customers'), this.customers()); // Debug log to check current state before loading new data
   }
+
+
+  
 
   getCustomerById(customerId: string): Observable<Customer> {
     this.loading.set(true);
@@ -95,7 +90,7 @@ export class CustomersService {
     ).pipe(
       map(response => response.data),
       tap(newCustomer => {
-        this.customers.update(customers => [newCustomer, ...customers]);
+        this.customers.update(list => [newCustomer, ...list]);
         this.total.update(total => total + 1);
         this.loading.set(false);
       }),
@@ -115,8 +110,8 @@ export class CustomersService {
     ).pipe(
       map(response => response.data),
       tap(updatedCustomer => {
-        this.customers.update(customers => 
-          customers.map(customer => customer.customerId === customerId ? updatedCustomer : customer)
+        this.customers.update(list =>
+          list.map(c => c.customerId === customerId ? updatedCustomer : c)
         );
         this.selectedCustomer.set(updatedCustomer);
         this.loading.set(false);
@@ -135,13 +130,8 @@ export class CustomersService {
     ).pipe(
       map(response => response.data),
       tap(() => {
-        this.customers.update(customers => 
-          customers.filter(customer => customer.customerId !== customerId)
-        );
+        this.customers.update(list => list.filter(c => c.customerId !== customerId));
         this.total.update(total => total - 1);
-        if (this.selectedCustomer()?.customerId === customerId) {
-          this.selectedCustomer.set(null);
-        }
       }),
       catchError(error => {
         this.errorHandler.handleError(error, 'Suppression du client');
@@ -156,11 +146,10 @@ export class CustomersService {
       { isActive }
     ).pipe(
       map(response => response.data),
-      tap(updatedCustomer => {
-        this.customers.update(customers => 
-          customers.map(customer => customer.customerId === customerId ? updatedCustomer : customer)
+      tap(updated => {
+        this.customers.update(list =>
+          list.map(c => c.customerId === customerId ? updated : c)
         );
-        this.selectedCustomer.set(updatedCustomer);
       }),
       catchError(error => {
         this.errorHandler.handleError(error, 'Changement de statut');
@@ -169,32 +158,21 @@ export class CustomersService {
     );
   }
 
-  addLoyaltyPoints(customerId: string, points: number): Observable<Customer> {
-    return this.http.patch<ApiResponse<Customer>>(
-      this.apiConfig.getEndpoint(`/customers/${customerId}/loyalty/add/${points}`),
-      {}
+  // Loyalty specific
+  addLoyaltyPoints(customerId: string, points: number, reason: string): Observable<Customer> {
+    return this.http.post<ApiResponse<Customer>>(
+      this.apiConfig.getEndpoint(`/customers/${customerId}/loyalty/add-points`),
+      null,
+      { params: { points: points.toString(), reason } }
     ).pipe(
       map(response => response.data),
-      tap(updatedCustomer => {
-        this.customers.update(customers => 
-          customers.map(customer => customer.customerId === customerId ? updatedCustomer : customer)
+      tap(updated => {
+        this.customers.update(list =>
+          list.map(c => c.customerId === customerId ? updated : c)
         );
-        this.selectedCustomer.set(updatedCustomer);
       }),
       catchError(error => {
-        this.errorHandler.handleError(error, 'Ajout de points de fidélité');
-        throw error;
-      })
-    );
-  }
-
-  getCustomerStatistics(): Observable<any> {
-    return this.http.get<ApiResponse<any>>(
-      this.apiConfig.getEndpoint('/customers/statistics')
-    ).pipe(
-      map(response => response.data),
-      catchError(error => {
-        this.errorHandler.handleError(error, 'Chargement des statistiques');
+        this.errorHandler.handleError(error, 'Ajout de points');
         throw error;
       })
     );
@@ -211,31 +189,5 @@ export class CustomersService {
         return of([]);
       })
     );
-  }
-
-  exportCustomers(format: 'csv' | 'excel' = 'csv'): Observable<Blob> {
-    return this.http.get(
-      this.apiConfig.getEndpoint('/customers/export'),
-      { params: { format }, responseType: 'blob' }
-    ).pipe(
-      catchError(error => {
-        this.errorHandler.handleError(error, 'Export des clients');
-        throw error;
-      })
-    );
-  }
-
-  setPage(newPage: number) {
-    this.page.set(newPage);
-    this.loadCustomers(newPage, this.pageSize());
-  }
-
-  setPageSize(newPageSize: number) {
-    this.pageSize.set(newPageSize);
-    this.loadCustomers(1, newPageSize);
-  }
-
-  initialize() {
-    this.loadCustomers();
   }
 }

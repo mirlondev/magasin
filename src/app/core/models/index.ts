@@ -327,8 +327,9 @@ export interface CashRegister {
   location?: string;
   model?: string;
   serialNumber?: string;
+  hasOpenShift?: boolean;
   createdAt: string;
-  updatedAt?: string;
+  updatedAt: string;
   store?: Store;
 }
 
@@ -339,6 +340,14 @@ export interface CashRegisterRequest {
   location?: string;
   model?: string;
   serialNumber?: string;
+  isActive?: boolean;
+}
+
+export interface CashRegisterStatistics {
+  totalRegisters: number;
+  activeRegisters: number;
+  inactiveRegisters: number;
+  registersWithOpenShift: number;
 }
 
 // ==================== SHIFT REPORT ====================
@@ -346,12 +355,11 @@ export interface CashRegisterRequest {
 export interface ShiftReport {
   shiftReportId: string;
   shiftNumber: string;
-  status: ShiftStatus;
   cashierId: string;
-  cashierName?: string;
+  cashierName: string;
   storeId: string;
-  storeName?: string;
-  cashRegisterId?: string;
+  storeName: string;
+  cashRegisterId: string;
   cashRegisterNumber?: string;
   cashRegisterName?: string;
   openingTime: string;
@@ -365,35 +373,37 @@ export interface ShiftReport {
   totalSales: number;
   totalRefunds: number;
   netSales: number;
+  cashSales: number;
+  cardSales: number;
+  mobileMoneySales: number;
+  creditSales: number;
+  cashSalesCount: number;
+  cardSalesCount: number;
+  mobileMoneySalesCount: number;
+  creditSalesCount: number;
+  totalCashIn: number;
+  totalCashOut: number;
+  totalCancellations: number;
   notes?: string;
+  status: ShiftStatus;
   createdAt: string;
   updatedAt: string;
-  cashSales?: number;
-  cardSales?: number;
-  mobileMoneySales?: number;
-  creditSales?: number;
-  cashSalesCount?: number;
-  cardSalesCount?: number;
-  mobileMoneySalesCount?: number;
-  creditSalesCount?: number;
-  open?: boolean;
-  closed?: boolean;
-  suspended?: boolean;
   cashier?: User;
   store?: Store;
-  cashRegister?: CashRegister;
 }
+
+export type ShiftReportDetail = ShiftReportDetailResponse;
 
 export interface ShiftReportDetailResponse {
   shiftReportId: string;
   shiftNumber: string;
   cashierId: string;
-  cashierName?: string;
+  cashierName: string;
   storeId: string;
-  storeName?: string;
-  cashRegisterId?: string;
-  cashRegisterNumber?: string;
-  cashRegisterName?: string;
+  storeName: string;
+  cashRegisterId: string;
+  cashRegisterNumber: string;
+  cashRegisterName: string;
   startTime: string;
   endTime?: string;
   openingBalance: number;
@@ -412,23 +422,12 @@ export interface ShiftReportDetailResponse {
   otherPayments: Record<string, number>;
   notes?: string;
   status: ShiftStatus;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface ShiftReportDetail extends ShiftReport {
-  cashTotal: number;
-  mobileTotal: number;
-  cardTotal: number;
-  creditTotal: number;
-  otherPayments: Record<string, number>;
-  totalCashIn?: number;
-  totalCashOut?: number;
-  totalCancellations?: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ShiftReportRequest {
-  storeId: string;
+  storeId?: string;
   cashRegisterId: string;
   openingBalance: number;
   notes?: string;
@@ -437,6 +436,67 @@ export interface ShiftReportRequest {
 export interface CloseShiftRequest {
   actualBalance?: number;
   notes?: string;
+}
+
+export interface CashMovementRequest {
+  amount: number;
+  reason: string;
+}
+
+export interface ShiftStatistics {
+  totalShifts: number;
+  openShifts: number;
+  closedShifts: number;
+  suspendedShifts: number;
+  totalSales: number;
+  totalRefunds: number;
+  averageShiftDuration: number;
+  totalDiscrepancy: number;
+}
+
+// ==================== RECEIPT ====================
+
+export interface ReceiptData {
+  receiptId: string;
+  receiptNumber: string;
+  receiptType: ReceiptType;
+  status: ReceiptStatus;
+  orderId?: string;
+  orderNumber?: string;
+  shiftReportId?: string;
+  cashierId: string;
+  cashierName: string;
+  storeId: string;
+  storeName: string;
+  receiptDate: string;
+  totalAmount: number;
+  amountPaid: number;
+  changeAmount: number;
+  paymentMethod: PaymentMethod;
+  pdfUrl?: string;
+  thermalData?: string;
+  printCount: number;
+  lastPrintedAt?: string;
+  createdAt: string;
+  items?: ReceiptItemData[];
+  payments?: ReceiptPaymentData[];
+}
+
+export interface ReceiptItemData {
+  productId: string;
+  productName: string;
+  productSku: string;
+  quantity: number;
+  unitPrice: number;
+  discountAmount: number;
+  taxAmount: number;
+  finalPrice: number;
+}
+
+export interface ReceiptPaymentData {
+  method: PaymentMethod;
+  amount: number;
+  status: string;
 }
 
 // ==================== CATEGORY ====================
@@ -696,28 +756,33 @@ export interface InventorySummaryProjection {
 }
 
 // ==================== CUSTOMER ====================
-
 export interface Customer {
   customerId: string;
   firstName: string;
   lastName: string;
-  fullName?: string;
   email: string;
-  phone?: string;
-  address?: string;
-  city?: string;
-  postalCode?: string;
-  country?: string;
-  dateOfBirth?: string;
-  isActive: boolean;
+  phone: string;
+  address: string;
+  city: string;
+  postalCode: string;
+  country: string;
   loyaltyPoints: number;
-  loyaltyTier?: LoyaltyTier;
+  loyaltyTier: 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM';
+  isActive: boolean;
   totalPurchases: number;
   purchaseCount: number;
-  lastPurchaseDate?: string;
   createdAt: string;
   updatedAt: string;
-  orderCount?: number;
+  fullName?: string;
+  dateOfBirth?: string;
+  lastPurchaseDate?: string;
+}
+
+
+export interface LoyaltySummary {
+  totalPoints: number;
+  tier: string;
+  nextTierPoints: number;
 }
 
 export interface CustomerRequest {
@@ -1036,87 +1101,7 @@ export interface InvoiceRequest {
 
 // ==================== RECEIPT ====================
 
-export interface Receipt {
-  receiptId: string;
-  receiptNumber: string;
-  receiptType: ReceiptType;
-  status: ReceiptStatus;
-  orderId?: string;
-  orderNumber?: string;
-  shiftReportId?: string;
-  cashierId: string;
-  cashierName?: string;
-  storeId: string;
-  storeName?: string;
-  receiptDate: string;
-  totalAmount: number;
-  amountPaid?: number;
-  changeAmount?: number;
-  paymentMethod?: PaymentMethod;
-  pdfUrl?: string;
-  printCount: number;
-  lastPrintedAt?: string;
-  notes?: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface ReceiptResponse {
-  receiptId: string;
-  receiptNumber: string;
-  receiptType: ReceiptType;
-  status: ReceiptStatus;
-  orderId?: string;
-  orderNumber?: string;
-  shiftReportId?: string;
-  cashierId: string;
-  cashierName?: string;
-  storeId: string;
-  storeName?: string;
-  receiptDate: string;
-  totalAmount: number;
-  amountPaid?: number;
-  changeAmount?: number;
-  paymentMethod?: PaymentMethod;
-  pdfUrl?: string;
-  printCount: number;
-  lastPrintedAt?: string;
-  notes?: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface ReceiptData {
-  orderId: string;
-  orderNumber: string;
-  customerName: string;
-  customerPhone?: string;
-  cashierName: string;
-  storeName: string;
-  storeAddress?: string;
-  storePhone?: string;
-  items: Array<{
-    productName: string;
-    productSku?: string;
-    quantity: number;
-    unitPrice: number;
-    finalPrice: number;
-    discountAmount: number;
-  }>;
-  subtotal: number;
-  taxAmount: number;
-  discountAmount: number;
-  totalAmount: number;
-  totalPaid: number;
-  remainingAmount: number;
-  changeAmount: number;
-  paymentsByMethod: Record<string, number>;
-  creditAmount: number;
-  notes?: string;
-  createdAt: string;
-}
+// Receipts are defined above in the consolidated section
 
 // ==================== REFUND ====================
 

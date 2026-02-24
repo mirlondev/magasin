@@ -1,0 +1,71 @@
+/* src/app/features/shift-reports/shift-report-list.component.css */
+
+:host {
+  display: block;
+}
+
+/* Shift status colors */
+.shift-open {
+  background-color: #4caf50;
+  color: white;
+}
+
+.shift-closed {
+  background-color: #2196f3;
+  color: white;
+}
+
+.shift-suspended {
+  background-color: #ff9800;
+  color: white;
+}
+
+.shift-under-review {
+  background-color: #f44336;
+  color: white;
+}
+
+/* Current shift banner animation */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.current-shift-banner {
+  animation: pulse 2s infinite;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  ::ng-deep .p-toolbar {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  ::ng-deep .p-toolbar-group-start,
+  ::ng-deep .p-toolbar-group-end {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Discrepancy indicators */
+.discrepancy-positive {
+  color: #ff9800;
+}
+
+.discrepancy-negative {
+  color: #f44336;
+}
+
+.discrepancy-zero {
+  color: #4caf50;
+}

@@ -1,0 +1,323 @@
+<!-- src/app/features/cash-registers/cash-register-list.component.html -->
+
+<p-toast />
+<p-confirmDialog />
+
+<div class="p-4">
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h2 class="text-2xl font-bold text-gray-800">Gestion des Caisses</h2>
+      <p class="text-gray-500 mt-1">Gérez les caisses enregistreuses de vos magasins</p>
+    </div>
+    @if (canManageCashRegisters()) {
+      <p-button 
+        label="Nouvelle Caisse" 
+        icon="pi pi-plus" 
+        severity="success"
+        (onClick)="openNew()" />
+    }
+  </div>
+
+  <!-- Statistics Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="surface-card p-4 rounded-lg shadow-md">
+      <div class="text-gray-500 font-medium text-sm">Total Caisses</div>
+      <div class="text-3xl font-bold text-gray-800 mt-2">{{ statistics()?.totalRegisters || 0 }}</div>
+    </div>
+    <div class="surface-card p-4 rounded-lg shadow-md">
+      <div class="text-gray-500 font-medium text-sm">Caisses Actives</div>
+      <div class="text-3xl font-bold text-green-600 mt-2">{{ statistics()?.activeRegisters || 0 }}</div>
+    </div>
+    <div class="surface-card p-4 rounded-lg shadow-md">
+      <div class="text-gray-500 font-medium text-sm">Caisses Inactives</div>
+      <div class="text-3xl font-bold text-red-600 mt-2">{{ statistics()?.inactiveRegisters || 0 }}</div>
+    </div>
+    <div class="surface-card p-4 rounded-lg shadow-md">
+      <div class="text-gray-500 font-medium text-sm">Sessions en cours</div>
+      <div class="text-3xl font-bold text-orange-600 mt-2">{{ statistics()?.registersWithOpenShift || 0 }}</div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="surface-card p-4 rounded-lg shadow-md mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Magasin</label>
+        <p-select 
+          [options]="storeOptions()"
+          [(ngModel)]="selectedStoreId"
+          (onChange)="onStoreChange($event)"
+          placeholder="Tous les magasins"
+          [showClear]="true"
+          class="w-full" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Recherche</label>
+        <input 
+          pInputText 
+          [(ngModel)]="searchQuery"
+          placeholder="N° ou nom de caisse..."
+          class="w-full" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Statut</label>
+        <p-select 
+          [options]="[
+            { label: 'Tous', value: null },
+            { label: 'Actives', value: true },
+            { label: 'Inactives', value: false }
+          ]"
+          [(ngModel)]="filterIsActive"
+          placeholder="Tous les statuts"
+          [showClear]="true"
+          class="w-full" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Session</label>
+        <p-select 
+          [options]="[
+            { label: 'Toutes', value: null },
+            { label: 'Avec session', value: true },
+            { label: 'Sans session', value: false }
+          ]"
+          [(ngModel)]="filterHasOpenShift"
+          placeholder="Toutes"
+          [showClear]="true"
+          class="w-full" />
+      </div>
+      <div class="flex items-end">
+        <p-button 
+          label="Réinitialiser" 
+          icon="pi pi-filter-slash" 
+          severity="secondary" 
+          [text]="true"
+          (onClick)="resetFilters()"
+          class="w-full" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Cash Registers Table -->
+  <div class="surface-card rounded-lg shadow-md overflow-hidden">
+    <p-table 
+      [value]="filteredCashRegisters()"
+      [paginator]="true"
+      [rows]="pageSize()"
+      [totalRecords]="total()"
+      [loading]="loading()"
+      (onPage)="onPageChange($event)"
+      [rowsPerPageOptions]="[10, 25, 50]"
+      styleClass="p-datatable-striped"
+      [tableStyle]="{ 'min-width': '75rem' }">
+      
+      <ng-template pTemplate="header">
+        <tr>
+          <th pSortableColumn="registerNumber">N° Caisse <p-sortIcon field="registerNumber" /></th>
+          <th pSortableColumn="name">Nom <p-sortIcon field="name" /></th>
+          <th pSortableColumn="storeName">Magasin <p-sortIcon field="storeName" /></th>
+          <th>Emplacement</th>
+          <th>Disponibilité</th>
+          <th pSortableColumn="isActive">Statut <p-sortIcon field="isActive" /></th>
+          <th>Actions</th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-register>
+        <tr>
+          <td class="font-semibold">
+            <div class="flex items-center gap-2">
+              <i class="pi pi-calculator text-gray-400"></i>
+              {{ register.registerNumber }}
+            </div>
+          </td>
+          <td>{{ register.name }}</td>
+          <td>{{ register.storeName || 'N/A' }}</td>
+          <td>{{ register.location || '-' }}</td>
+          <td>
+            @let status = getAvailabilityStatus(register);
+            <p-tag `
+              [value]="status.label"
+              [severity]="status.severity" />
+          </td>
+          <td>
+            <p-toggle-switch
+              [(ngModel)]="register.isActive"
+              (onChange)="register.isActive ? activateCashRegister(register) : deactivateCashRegister(register)"
+              [disabled]="loading()" />
+          </td>
+          <td>
+            <div class="flex gap-2">
+              @if (canManageCashRegisters()) {
+                <p-button 
+                  icon="pi pi-pencil" 
+                  severity="secondary" 
+                  [text]="true" 
+                  [rounded]="true"
+                  (onClick)="editCashRegister(register)"
+                  pTooltip="Modifier" />
+                
+                @if (register.isActive) {
+                  <p-button 
+                    icon="pi pi-power-off" 
+                    severity="warn" 
+                    [text]="true" 
+                    [rounded]="true"
+                    (onClick)="deactivateCashRegister(register)"
+                    pTooltip="Désactiver" />
+                } @else {
+                  <p-button 
+                    icon="pi pi-play" 
+                    severity="success" 
+                    [text]="true" 
+                    [rounded]="true"
+                    (onClick)="activateCashRegister(register)"
+                    pTooltip="Activer" />
+                }
+                
+                <p-button 
+                  icon="pi pi-trash" 
+                  severity="danger" 
+                  [text]="true" 
+                  [rounded]="true"
+                  (onClick)="deleteCashRegister(register)"
+                  pTooltip="Supprimer" />
+              }
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="7" class="text-center p-8">
+            @if (loading()) {
+              <div class="flex flex-col items-center">
+                <i class="pi pi-spin pi-spinner text-4xl text-gray-400 mb-3"></i>
+                <p class="text-gray-600">Chargement en cours...</p>
+              </div>
+            } @else {
+              <div class="flex flex-col items-center">
+                <i class="pi pi-inbox text-4xl text-gray-400 mb-3"></i>
+                <p class="text-gray-600 text-lg">Aucune caisse trouvée</p>
+                <p class="text-gray-500 text-sm mt-1">
+                  @if (selectedStoreId()) {
+                    Sélectionnez un autre magasin ou créez une nouvelle caisse
+                  } @else {
+                    Créez votre première caisse pour commencer
+                  }
+                </p>
+              </div>
+            }
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+</div>
+
+<!-- Dialog for New/Edit -->
+<p-dialog 
+  [(visible)]="dialogVisible" 
+  [modal]="true" 
+  [header]="isEditMode() ? 'Modifier la Caisse' : 'Nouvelle Caisse'" 
+  [style]="{ width: '600px' }">
+  
+  <form [formGroup]="cashRegisterForm" class="flex flex-col gap-4">
+    <div class="grid grid-cols-2 gap-4">
+      <div class="flex flex-col gap-2">
+        <label for="registerNumber" class="text-sm font-medium">Numéro de Caisse *</label>
+        <input 
+          pInputText 
+          id="registerNumber" 
+          formControlName="registerNumber"
+          placeholder="Ex: Caisse-01"
+          class="w-full" 
+          [ngClass]="{ 'ng-invalid ng-dirty': submitted() && cashRegisterForm.get('registerNumber')?.invalid }" />
+        @if (submitted() && cashRegisterForm.get('registerNumber')?.invalid) {
+          <small class="p-error">Numéro requis (min 3 caractères)</small>
+        }
+      </div>
+
+      <div class="flex flex-col gap-2">
+        <label for="name" class="text-sm font-medium">Nom *</label>
+        <input 
+          pInputText 
+          id="name" 
+          formControlName="name"
+          placeholder="Ex: Caisse Principale"
+          class="w-full" 
+          [ngClass]="{ 'ng-invalid ng-dirty': submitted() && cashRegisterForm.get('name')?.invalid }" />
+        @if (submitted() && cashRegisterForm.get('name')?.invalid) {
+          <small class="p-error">Nom requis (min 3 caractères)</small>
+        }
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <label for="storeId" class="text-sm font-medium">Magasin *</label>
+      <p-select 
+        id="storeId"
+        formControlName="storeId"
+        [options]="storeOptions()"
+        placeholder="Sélectionnez un magasin"
+        class="w-full"
+        [ngClass]="{ 'ng-invalid ng-dirty': submitted() && cashRegisterForm.get('storeId')?.invalid }" />
+      @if (submitted() && cashRegisterForm.get('storeId')?.invalid) {
+        <small class="p-error">Magasin requis</small>
+      }
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <label for="location" class="text-sm font-medium">Emplacement</label>
+      <input 
+        pInputText 
+        id="location" 
+        formControlName="location"
+        placeholder="Ex: Rez-de-chaussée, Étage 1..."
+        class="w-full" />
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div class="flex flex-col gap-2">
+        <label for="model" class="text-sm font-medium">Modèle</label>
+        <input 
+          pInputText 
+          id="model" 
+          formControlName="model"
+          placeholder="Ex: EPSON TM-T20"
+          class="w-full" />
+      </div>
+
+      <div class="flex flex-col gap-2">
+        <label for="serialNumber" class="text-sm font-medium">N° de Série</label>
+        <input 
+          pInputText 
+          id="serialNumber" 
+          formControlName="serialNumber"
+          placeholder="N° de série de l'appareil"
+          class="w-full" />
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2 pt-2">
+      <p-inputSwitch formControlName="isActive" />
+      <label class="text-sm font-medium">Caisse Active</label>
+    </div>
+  </form>
+
+  <ng-template pFooter>
+    <div class="flex justify-end gap-2">
+      <p-button 
+        label="Annuler" 
+        severity="secondary" 
+        (onClick)="hideDialog()" 
+        [text]="true" />
+      <p-button 
+        label="Enregistrer" 
+        severity="success"
+        (onClick)="saveCashRegister()" 
+        [disabled]="cashRegisterForm.invalid || loading()" />
+    </div>
+  </ng-template>
+</p-dialog>

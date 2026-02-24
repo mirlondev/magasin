@@ -149,7 +149,13 @@ export class DocumentPreviewComponent {
   items = input.required<any[]>();
   customer = input<any>(null);
   totals = input.required<{ subtotal: number; tax: number; total: number }>();
-  config = input<{ validityDays?: number; notes?: string; reference?: string }>({});
+  config = input<{
+    validityDays?: number;
+    notes?: string;
+    reference?: string;
+    dueDate?: Date;
+    paymentTerms?: string;
+  }>({});
 
   close = output<void>();
   print = output<void>();

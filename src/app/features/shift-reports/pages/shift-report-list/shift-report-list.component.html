@@ -1,0 +1,326 @@
+<!-- src/app/features/shift-reports/shift-report-list.component.html -->
+
+<p-toast />
+<p-confirmDialog />
+
+<div class="p-4">
+  <!-- Current Shift Banner -->
+  @if (currentShift()) {
+    <div class="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center">
+          <i class="pi pi-clock text-2xl text-blue-500 mr-4"></i>
+          <div>
+            <h3 class="font-bold text-lg">Caisse ouverte</h3>
+            <p class="text-gray-600 dark:text-gray-400">
+              Session #{{ currentShift()?.shiftNumber }} •
+              Caisse {{ currentShift()?.cashRegisterNumber || 'N/A' }} •
+              Ouverte à {{ currentShift()?.openingTime | date:'HH:mm' }} •
+              Solde: {{ currentShift()?.actualBalance | xaf }}
+            </p>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <p-button
+            icon="pi pi-eye"
+            label="Voir détails"
+            severity="secondary"
+            [outlined]="true"
+            [routerLink]="['/shift-reports', currentShift()?.shiftReportId]" />
+          <p-button
+            icon="pi pi-lock"
+            label="Fermer la caisse"
+            severity="danger"
+            (onClick)="closeCurrentShift()" />
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Toolbar -->
+  <p-toolbar>
+    <div class="p-toolbar-group-start">
+      <h2 class="text-2xl font-bold">Sessions de Caisse</h2>
+    </div>
+    <div class="p-toolbar-group-end">
+      @if (canOpenShift()) {
+        <p-button
+          icon="pi pi-lock-open"
+          label="Ouvrir une caisse"
+          severity="success"
+          [routerLink]="['/shift-reports/new']" />
+      }
+      <p-button
+        icon="pi pi-file-export"
+        label="Exporter"
+        severity="help"
+        class="ml-2"
+        (onClick)="exportShiftReports()" />
+    </div>
+  </p-toolbar>
+
+  <!-- Filters -->
+  <div class="p-4 surface-ground rounded mb-4 mt-4">
+    <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Statut</label>
+        <p-select 
+          [options]="statusOptions"
+          [(ngModel)]="filters().status"
+          (onChange)="onFilterChange()"
+          placeholder="Tous les statuts"
+          [showClear]="true"
+          class="w-full" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Caissier</label>
+        <input 
+          pInputText
+          [(ngModel)]="filters().cashier"
+          (ngModelChange)="onFilterChange()"
+          placeholder="Nom du caissier..."
+          class="w-full" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Magasin</label>
+        <input 
+          pInputText
+          [(ngModel)]="filters().store"
+          (ngModelChange)="onFilterChange()"
+          placeholder="Nom du magasin..."
+          class="w-full" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Caisse</label>
+        <input 
+          pInputText
+          [(ngModel)]="filters().cashRegister"
+          (ngModelChange)="onFilterChange()"
+          placeholder="Numéro de caisse..."
+          class="w-full" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Période</label>
+        <p-datepicker 
+          [(ngModel)]="dateRange"
+          (onSelect)="onDateRangeChange()"
+          selectionMode="range"
+          [showIcon]="true"
+          dateFormat="dd/mm/yy"
+          placeholder="Sélectionner une période"
+          class="w-full" />
+      </div>
+      <div class="flex items-end">
+        <p-button 
+          label="Réinitialiser" 
+          icon="pi pi-filter-slash" 
+          severity="secondary" 
+          [outlined]="true"
+          (onClick)="resetFilters()"
+          class="w-full" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Statistics -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="surface-card p-4 rounded-lg shadow-md">
+      <div class="text-gray-500 font-medium text-sm">Sessions ouvertes</div>
+      <div class="text-3xl font-bold text-green-600 mt-2">{{ openShifts().length }}</div>
+    </div>
+    <div class="surface-card p-4 rounded-lg shadow-md">
+      <div class="text-gray-500 font-medium text-sm">Sessions fermées</div>
+      <div class="text-3xl font-bold text-blue-600 mt-2">{{ closedShifts().length }}</div>
+    </div>
+    <div class="surface-card p-4 rounded-lg shadow-md">
+      <div class="text-gray-500 font-medium text-sm">Sessions suspendues</div>
+      <div class="text-3xl font-bold text-orange-600 mt-2">{{ suspendedShifts().length }}</div>
+    </div>
+    <div class="surface-card p-4 rounded-lg shadow-md">
+      <div class="text-gray-500 font-medium text-sm">Total ventes</div>
+      <div class="text-3xl font-bold mt-2">{{ totalSales() | xaf }}</div>
+    </div>
+  </div>
+
+  <!-- Shift Reports Table -->
+  <div class="surface-card rounded-lg shadow-md overflow-hidden">
+    <p-table 
+      [value]="shiftReports()"
+      [lazy]="true"
+      [paginator]="true"
+      [rows]="pageSize()"
+      [totalRecords]="total()"
+      [loading]="loading()"
+      (onLazyLoad)="onLazyLoad($event)"
+      [rowsPerPageOptions]="[10, 25, 50]"
+      styleClass="p-datatable-striped"
+      [tableStyle]="{'min-width': '75rem'}">
+      
+      <ng-template pTemplate="header">
+        <tr>
+          <th pSortableColumn="shiftNumber">N° Session <p-sortIcon field="shiftNumber" /></th>
+          <th pSortableColumn="cashierName">Caissier <p-sortIcon field="cashierName" /></th>
+          <th pSortableColumn="storeName">Magasin <p-sortIcon field="storeName" /></th>
+          <th>Caisse</th>
+          <th pSortableColumn="status">Statut <p-sortIcon field="status" /></th>
+          <th pSortableColumn="totalSales">Ventes <p-sortIcon field="totalSales" /></th>
+          <th pSortableColumn="openingTime">Ouverture <p-sortIcon field="openingTime" /></th>
+          <th pSortableColumn="closingTime">Fermeture <p-sortIcon field="closingTime" /></th>
+          <th>Actions</th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-shift>
+        <tr>
+          <td class="font-semibold">
+            <a [routerLink]="['/shift-reports', shift.shiftReportId]"
+               class="text-primary-600 hover:text-primary-500">
+              {{ shift.shiftNumber }}
+            </a>
+          </td>
+          <td>{{ shift.cashierName || 'N/A' }}</td>
+          <td>{{ shift.storeName || 'N/A' }}</td>
+          <td>
+            @if (shift.cashRegisterNumber) {
+              <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                {{ shift.cashRegisterNumber }}
+              </span>
+            } @else {
+              <span class="text-gray-400">-</span>
+            }
+          </td>
+          <td>
+            <p-tag 
+              [value]="getStatusLabel(shift.status)"
+              [severity]="getStatusSeverity(shift.status)" />
+          </td>
+          <td class="font-semibold">{{ shift.totalSales | xaf }}</td>
+          <td>{{ shift.openingTime | date:'dd/MM/yyyy HH:mm' }}</td>
+          <td>
+            @if (shift.closingTime) {
+              {{ shift.closingTime | date:'dd/MM/yyyy HH:mm' }}
+            } @else {
+              <span class="text-gray-400">-</span>
+            }
+          </td>
+          <td>
+            <div class="flex gap-2">
+              <p-button
+                icon="pi pi-eye"
+                severity="info"
+                [text]="true"
+                [rounded]="true"
+                [routerLink]="['/shift-reports', shift.shiftReportId]"
+                pTooltip="Voir détails" />
+              @if (canManageShift()) {
+                @if (shift.status === 'OPEN') {
+                  <p-button
+                    icon="pi pi-pause"
+                    severity="warn"
+                    [text]="true"
+                    [rounded]="true"
+                    (onClick)="suspendShift(shift)"
+                    [disabled]="loading()"
+                    pTooltip="Suspendre" />
+                  <p-button
+                    icon="pi pi-lock"
+                    severity="danger"
+                    [text]="true"
+                    [rounded]="true"
+                    (onClick)="confirmCloseShift(shift)"
+                    [disabled]="loading()"
+                    pTooltip="Fermer" />
+                }
+                @if (shift.status === 'SUSPENDED') {
+                  <p-button
+                    icon="pi pi-play"
+                    severity="success"
+                    [text]="true"
+                    [rounded]="true"
+                    (onClick)="resumeShift(shift)"
+                    [disabled]="loading()"
+                    pTooltip="Reprendre" />
+                }
+                <p-button
+                  icon="pi pi-print"
+                  severity="help"
+                  [text]="true"
+                  [rounded]="true"
+                  (onClick)="printShiftReport(shift)"
+                  [disabled]="loading()"
+                  pTooltip="Imprimer" />
+              }
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="9" class="text-center p-8">
+            @if (loading()) {
+              <div class="flex flex-col items-center">
+                <i class="pi pi-spin pi-spinner text-4xl text-gray-400 mb-3"></i>
+                <p class="text-gray-600">Chargement en cours...</p>
+              </div>
+            } @else {
+              <div class="flex flex-col items-center">
+                <i class="pi pi-inbox text-4xl text-gray-400 mb-3"></i>
+                <p class="text-gray-600 text-lg">Aucune session de caisse trouvée</p>
+              </div>
+            }
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+</div>
+
+<!-- Close Shift Dialog -->
+<p-dialog 
+  header="Fermer la caisse"
+  [(visible)]="showCloseDialog"
+  [modal]="true"
+  [style]="{ width: '500px' }">
+  
+  <div class="space-y-4">
+    <div class="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg mb-4">
+      <div class="text-sm text-blue-800 dark:text-blue-200">
+        <strong>Solde attendu:</strong> {{ selectedShiftForClose()?.expectedBalance | xaf }}<br>
+        <small>Si vous ne saisissez pas de solde réel, le solde attendu sera utilisé.</small>
+      </div>
+    </div>
+    <div>
+      <label class="block text-sm font-medium mb-2">Solde réel compté (optionnel)</label>
+      <p-inputNumber 
+        [(ngModel)]="closingBalance"
+        [min]="0"
+        [step]="1000"
+        placeholder="Montant compté en caisse"
+        class="w-full" />
+    </div>
+    <div>
+      <label class="block text-sm font-medium mb-2">Notes de fermeture</label>
+      <textarea 
+        pTextarea 
+        [(ngModel)]="closingNotes"
+        [rows]="3"
+        placeholder="Notes..."
+        class="w-full"></textarea>
+    </div>
+  </div>
+
+  <ng-template pFooter>
+    <div class="flex justify-end gap-2">
+      <p-button 
+        label="Annuler" 
+        severity="secondary" 
+        (onClick)="showCloseDialog.set(false)" 
+        [text]="true" />
+      <p-button 
+        label="Fermer la caisse" 
+        severity="danger"
+        (onClick)="closeShift()" />
+    </div>
+  </ng-template>
+</p-dialog>
