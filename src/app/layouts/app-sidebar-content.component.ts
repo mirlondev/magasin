@@ -295,11 +295,30 @@ export class SidebarContentComponent {
           roles: [EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER]
         },
         {
+          label: 'Credit',
+          icon: 'pi-file',
+          routerLink: '/orders/credit-sales',
+          roles: [EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN]
+        },
+        {
+          label: 'Proforma',
+          icon: 'pi-file',
+          routerLink: '/orders/proformas',
+          roles: [EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN]
+        },
+        {
+          label: 'Bons de livraison',
+          icon: 'pi-file',
+          routerLink: '/orders/quotes',
+          roles: [EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN]
+        },
+        {
           label: 'Factures',
           icon: 'pi-file',
-          routerLink: '/orders/documents-sale',
+          routerLink: '/orders/documents',
           roles: [EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN]
-        }
+        },
+
       ]
     },
     {

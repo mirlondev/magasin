@@ -911,8 +911,10 @@ export interface OrderResponse {
   discountAmount?: number;
   amountPaid?: number;
   customerLoyaltyPoints?: number;
-  paymentMethod?: PaymentMethod
-
+  paymentMethod?: PaymentMethod,
+  validUntil?: Date;
+  dueDate?: string;
+  customer?: Customer;
 }
 
 export interface OrderItem {

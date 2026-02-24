@@ -54,13 +54,85 @@ export const ORDERS_ROUTES: Routes = [
     canActivate: [roleGuard([EmployeeRole.ADMIN, EmployeeRole.STORE_ADMIN, EmployeeRole.CASHIER])]
   },
 
+    {
+    path: '',
+    redirectTo: 'credit-sales',
+    pathMatch: 'full'
+  },
+  {
+    path: 'credit-sales',
+    children: [
+      {
+        path: '',
+        loadComponent: () => import('../../features/orders/pages/credit-sales-list/credit-sales-list.component')
+          .then(m => m.CreditSalesListComponent)
+      },
+      {
+        path: 'new',
+        loadComponent: () => import('../../features/orders/pages/document-form/document-form.component')
+          .then(m => m.DocumentFormComponent)
+      },
+      {
+        path: ':id',
+        loadComponent: () => import('../../features/orders/pages/document-form/document-form.component')
+          .then(m => m.DocumentFormComponent)
+      }
+    ]
+  },
+  {
+    path: 'proformas',
+    children: [
+      {
+        path: '',
+        loadComponent: () => import('../../features/orders/pages/non-commercial-documents/non-commercial-documents.component')
+          .then(m => m.NonCommercialDocumentsComponent)
+      },
+      {
+        path: 'new',
+        loadComponent: () => import('../../features/orders/pages/document-form/document-form.component')
+          .then(m => m.DocumentFormComponent)
+      },
+      {
+        path: ':id',
+        loadComponent: () => import('../../features/orders/pages/document-form/document-form.component')
+          .then(m => m.DocumentFormComponent)
+      }
+    ]
+  },
+  {
+    path: 'quotes',
+    children: [
+      {
+        path: '',
+        loadComponent: () => import('../../features/orders/pages/non-commercial-documents/non-commercial-documents.component')
+          .then(m => m.NonCommercialDocumentsComponent)
+      },
+      {
+        path: 'new',
+        loadComponent: () => import('../../features/orders/pages/document-form/document-form.component')
+          .then(m => m.DocumentFormComponent)
+      },
+      {
+        path: ':id',
+        loadComponent: () => import('../../features/orders/pages/document-form/document-form.component')
+          .then(m => m.DocumentFormComponent)
+      }
+    ]
+  },
+  {
+    path: 'documents',
+    loadComponent: () => import('../../features/orders/pages/non-commercial-documents/non-commercial-documents.component')
+      .then(m => m.NonCommercialDocumentsComponent)
+  },
+
+
   // { path: ':id/edit', component: OrderEditComponent },
   // { path: ':id/payment', component: OrderPaymentComponent }
 
 
   // Redirects for backward compatibility
   { path: 'orders/create', redirectTo: 'orders/pos-sale', pathMatch: 'full' },
-  { path: 'orders/pos', redirectTo: 'orders/pos-sale', pathMatch: 'full' },
+  { path: 'orders/pos', redirectTo: 'orders/pos-sale', pathMatch: 'full' }
   // { path: 'orders/credit', redirectTo: 'orders/credit-sale', pathMatch: 'full' },
   // { path: 'orders/proforma', redirectTo: 'orders/proforma', pathMatch: 'full' }
 ];
