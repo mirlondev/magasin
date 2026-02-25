@@ -1,3 +1,8 @@
+// ============================================================
+// ENHANCED: non-commercial-documents.component.ts
+// Fixed to use SelectModule, aligned with backend API
+// ============================================================
+
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { Router, RouterModule } from "@angular/router";
@@ -11,12 +16,12 @@ import { IconFieldModule } from "primeng/iconfield";
 import { InputIconModule } from "primeng/inputicon";
 import { InputTextModule } from "primeng/inputtext";
 import { MenuModule } from "primeng/menu";
-import { SelectModule } from "primeng/select";
+import { SelectModule } from "primeng/select"; // ✅ Using SelectModule instead of DropdownModule
 import { TableModule } from "primeng/table";
 import { TagModule } from "primeng/tag";
 import { ToastModule } from "primeng/toast";
 import { TooltipModule } from "primeng/tooltip";
-import { DocumentType, OrderResponse, OrderStatus, OrderType } from "../../../../core/models";
+import { OrderResponse, OrderStatus, OrderType } from "../../../../core/models";
 import { XafPipe } from "../../../../core/pipes/xaf-currency-pipe";
 import { DocumentSalesService } from "../../../../core/services/document-sales.service";
 
@@ -53,7 +58,7 @@ interface DocumentTypeFilter {
             <div class="flex gap-3">
               <p-button
                 icon="pi pi-refresh"
-                outlined="true"
+                [outlined]="true"
                 (onClick)="refreshData()"
                 pTooltip="Actualiser"
               ></p-button>
@@ -176,9 +181,9 @@ interface DocumentTypeFilter {
                   <div class="text-surface-700">{{ doc.createdAt | date:'dd/MM/yyyy' }}</div>
                 </td>
                 <td>
-                  @if (doc.validUntil) {
+                  @if (doc.validUntil || doc.dueDate) {
                     <div [class.text-red-600]="isExpired(doc)">
-                      {{ doc.validUntil | date:'dd/MM/yyyy' }}
+                      {{ (doc.validUntil || doc.dueDate) | date:'dd/MM/yyyy' }}
                       @if (isExpired(doc)) {
                         <p-tag value="Expiré" severity="danger" styleClass="text-xs ml-2"></p-tag>
                       }
@@ -201,20 +206,20 @@ interface DocumentTypeFilter {
                   <div class="flex gap-1">
                     <p-button
                       icon="pi pi-eye"
-                      text="true"
+                      [text]="true"
                       (onClick)="viewDocument(doc)"
                       pTooltip="Détails"
                     ></p-button>
                     <p-button
                       icon="pi pi-file-pdf"
-                      text="true"
+                      [text]="true"
                       (onClick)="downloadPdf(doc)"
                       pTooltip="PDF"
                     ></p-button>
                     @if (canConvert(doc)) {
                       <p-button
                         icon="pi pi-check-circle"
-                        text="true"
+                        [text]="true"
                         severity="success"
                         (onClick)="convertToInvoice(doc)"
                         pTooltip="Convertir en facture"
@@ -222,7 +227,7 @@ interface DocumentTypeFilter {
                     }
                     <p-button
                       icon="pi pi-ellipsis-v"
-                      text="true"
+                      [text]="true"
                       (onClick)="menu.toggle($event); selectedDocForMenu.set(doc)"
                     ></p-button>
                   </div>
@@ -279,7 +284,7 @@ interface DocumentTypeFilter {
             <div class="flex justify-end mt-6">
               <p-button
                 label="Annuler"
-                outlined="true"
+                [outlined]="true"
                 (onClick)="showNewDocumentDialog.set(false)"
               ></p-button>
             </div>
@@ -382,8 +387,14 @@ export class NonCommercialDocumentsComponent implements OnInit {
   }
 
   loadData() {
+    // Load proformas and quotes (ONLINE orders)
     this.documentService.loadOrders(1, 10, {
       orderType: OrderType.PROFORMA
+    });
+    
+    // Also load quotes
+    this.documentService.loadOrders(1, 10, {
+      orderType: OrderType.ONLINE
     });
   }
 
@@ -427,7 +438,11 @@ export class NonCommercialDocumentsComponent implements OnInit {
   }
 
   downloadPdf(doc: OrderResponse) {
-    this.documentService.downloadProformaPdf(doc.orderId).subscribe({
+    const download$ = doc.orderType === 'PROFORMA'
+      ? this.documentService.downloadProformaPdf(doc.orderId)
+      : this.documentService.downloadInvoicePdf(doc.orderId);
+
+    download$.subscribe({
       next: (blob) => {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -457,11 +472,7 @@ export class NonCommercialDocumentsComponent implements OnInit {
       header: 'Confirmation',
       icon: 'pi pi-exclamation-circle',
       accept: () => {
-        const operation = doc.orderType === 'PROFORMA'
-          ? this.documentService.convertProformaToSale(doc.orderId)
-          : this.documentService.generateInvoice(doc.orderId);
-
-        operation.subscribe({
+        this.documentService.convertProformaToSale(doc.orderId).subscribe({
           next: () => {
             this.messageService.add({
               severity: 'success',
@@ -483,16 +494,40 @@ export class NonCommercialDocumentsComponent implements OnInit {
   }
 
   duplicateDocument(doc: OrderResponse) {
-    this.router.navigate(['/salpes/documents/new'], {
+    this.router.navigate(['/sales/documents/new'], {
       queryParams: { duplicate: doc.orderId }
     });
   }
 
   sendByEmail(doc: OrderResponse) {
-    this.messageService.add({
-      severity: 'info',
-      summary: 'Email',
-      detail: 'Fonctionnalité en développement'
+    // Get invoice first, then send email
+    this.documentService.getInvoiceByOrder(doc.orderId).subscribe({
+      next: (invoice) => {
+        if (invoice?.invoiceId && doc.customerEmail) {
+          this.documentService.sendInvoiceByEmail(invoice.invoiceId, doc.customerEmail).subscribe({
+            next: () => {
+              this.messageService.add({
+                severity: 'success',
+                summary: 'Email envoyé',
+                detail: `Document envoyé à ${doc.customerEmail}`
+              });
+            },
+            error: () => {
+              this.messageService.add({
+                severity: 'error',
+                summary: 'Erreur',
+                detail: 'Impossible d\'envoyer l\'email'
+              });
+            }
+          });
+        } else {
+          this.messageService.add({
+            severity: 'warn',
+            summary: 'Information manquante',
+            detail: 'Aucun email client disponible'
+          });
+        }
+      }
     });
   }
 
@@ -511,6 +546,13 @@ export class NonCommercialDocumentsComponent implements OnInit {
               detail: 'Document supprimé avec succès'
             });
             this.refreshData();
+          },
+          error: () => {
+            this.messageService.add({
+              severity: 'error',
+              summary: 'Erreur',
+              detail: 'Impossible de supprimer le document'
+            });
           }
         });
       }
@@ -518,8 +560,9 @@ export class NonCommercialDocumentsComponent implements OnInit {
   }
 
   isExpired(doc: OrderResponse): boolean {
-    if (!doc.validUntil) return false;
-    return new Date(doc.validUntil) < new Date();
+    const date = doc.validUntil || doc.dueDate;
+    if (!date) return false;
+    return new Date(date) < new Date();
   }
 
   getInitials(name: string): string {

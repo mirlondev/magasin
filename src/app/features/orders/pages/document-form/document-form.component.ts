@@ -1,5 +1,10 @@
+// ============================================================
+// ENHANCED: document-form.component.ts
+// Fixed to use SelectModule, aligned with backend API
+// ============================================================
+
 import { CommonModule } from "@angular/common";
-import { Component, OnInit, ViewChild, computed, inject, signal } from "@angular/core";
+import { Component, OnInit, computed, inject, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { ActivatedRoute, Router } from "@angular/router";
 import { ConfirmationService, MessageService } from "primeng/api";
@@ -12,7 +17,7 @@ import { DialogModule } from "primeng/dialog";
 import { DividerModule } from "primeng/divider";
 import { InputNumberModule } from "primeng/inputnumber";
 import { InputTextModule } from "primeng/inputtext";
-import { SelectModule } from "primeng/select";
+import { SelectModule } from "primeng/select"; // ✅ Using SelectModule
 import { StepperModule } from "primeng/stepper";
 import { TableModule } from "primeng/table";
 import { TagModule } from "primeng/tag";
@@ -25,9 +30,8 @@ import { CustomersService } from "../../../../core/services/customers.service";
 import { DocumentSalesService } from "../../../../core/services/document-sales.service";
 import { ProductsService } from "../../../../core/services/products.service";
 import { OrderStateService } from "../../../orders/services/order-state.service";
-import { StyleClassModule } from "primeng/styleclass";
 import {
-  OrderType, DocumentType, Product, Customer, OrderItemRequest, PaymentMethod
+  OrderType, Product, Customer, PaymentMethod
 } from '../../../../core/models';
 
 type DocumentFormStep = 0 | 1 | 2 | 3;
@@ -60,7 +64,7 @@ interface DocumentConfig {
             <div class="flex items-center gap-4">
               <p-button
                 icon="pi pi-arrow-left"
-                text="true"
+                [text]="true"
                 (onClick)="goBack()"
               ></p-button>
               <div>
@@ -84,7 +88,7 @@ interface DocumentConfig {
               <p-button
                 label="Brouillon"
                 icon="pi pi-save"
-                outlined="true"
+                [outlined]="true"
                 (onClick)="saveAsDraft()"
                 [disabled]="!canSaveDraft()"
               ></p-button>
@@ -157,12 +161,12 @@ interface DocumentConfig {
                           <div class="flex gap-2">
                             <p-button
                               icon="pi pi-pencil"
-                              text="true"
+                              [text]="true"
                               (onClick)="showCustomerSearch.set(true)"
                             ></p-button>
                             <p-button
                               icon="pi pi-times"
-                              text="true"
+                              [text]="true"
                               severity="danger"
                               (onClick)="clearCustomer()"
                             ></p-button>
@@ -185,7 +189,7 @@ interface DocumentConfig {
                           <p-button
                             icon="pi pi-plus"
                             label="Nouveau client"
-                            outlined="true"
+                            [outlined]="true"
                             (onClick)="showNewCustomerForm.set(true)"
                           ></p-button>
                         </div>
@@ -197,7 +201,7 @@ interface DocumentConfig {
                     <p-button
                       label="Continuer"
                       icon="pi pi-arrow-right"
-                      (onClick)="nextCallback.emit()"
+                      (onClick)="nextCallback()"
                       [disabled]="!canProceedToItems()"
                     ></p-button>
                   </div>
@@ -241,7 +245,7 @@ interface DocumentConfig {
                               (click)="addToCart(product)"
                             >
                               @if (product.imageUrl) {
-                                <img [src]="product.imageUrl" class="w-16 h-16 object-cover rounded-lg" [alt]="product.name">
+                                <img [src]="product.imageUrl" (error)="product.imageUrl = ''" class="w-16 h-16 object-cover rounded-lg" [alt]="product.name">
                               } @else {
                                 <div class="w-16 h-16 bg-surface-100 rounded-lg flex items-center justify-center">
                                   <i class="pi pi-image text-surface-400 text-xl"></i>
@@ -259,7 +263,7 @@ interface DocumentConfig {
                               </div>
                               <p-button
                                 icon="pi pi-plus"
-                                rounded="true"
+                                [rounded]="true"
                                 severity="success"
                                 [disabled]="product.quantity === 0"
                                 (onClick)="addToCart(product); $event.stopPropagation()"
@@ -278,7 +282,7 @@ interface DocumentConfig {
                           @if (cartItems().length > 0) {
                             <p-button
                               icon="pi pi-trash"
-                              text="true"
+                              [text]="true"
                               severity="danger"
                               (onClick)="clearCart()"
                             ></p-button>
@@ -301,21 +305,21 @@ interface DocumentConfig {
                                 <div class="flex items-center gap-2">
                                   <p-button
                                     icon="pi pi-minus"
-                                    rounded="true"
-                                    text="true"
+                                    [rounded]="true"
+                                    [text]="true"
                                     (onClick)="updateQuantity(item.product.productId, -1)"
                                   ></p-button>
                                   <span class="w-8 text-center font-medium">{{ item.quantity }}</span>
                                   <p-button
                                     icon="pi pi-plus"
-                                    rounded="true"
-                                    text="true"
+                                    [rounded]="true"
+                                    [text]="true"
                                     (onClick)="updateQuantity(item.product.productId, 1)"
                                   ></p-button>
                                   <p-button
                                     icon="pi pi-times"
-                                    rounded="true"
-                                    text="true"
+                                    [rounded]="true"
+                                    [text]="true"
                                     severity="danger"
                                     (onClick)="removeItem(item.product.productId)"
                                   ></p-button>
@@ -359,13 +363,13 @@ interface DocumentConfig {
                     <p-button
                       label="Retour"
                       icon="pi pi-arrow-left"
-                      text="true"
-                      (onClick)="prevCallback.emit()"
+                      [text]="true"
+                      (onClick)="prevCallback()"
                     ></p-button>
                     <p-button
                       label="Continuer"
                       icon="pi pi-arrow-right"
-                      (onClick)="nextCallback.emit()"
+                      (onClick)="nextCallback()"
                       [disabled]="cartItems().length === 0"
                     ></p-button>
                   </div>
@@ -412,7 +416,7 @@ interface DocumentConfig {
                         [options]="paymentTerms"
                         [(ngModel)]="selectedPaymentTerm"
                         placeholder="Sélectionner les conditions..."
-                        pStyleClass="w-full"
+                        styleClass="w-full"
                       ></p-select>
 
                       @if (selectedPaymentTerm() === 'INSTALLMENT') {
@@ -424,7 +428,7 @@ interface DocumentConfig {
                               [min]="0"
                               [max]="100"
                               suffix="%"
-                              pStyleClass="w-full"
+                              styleClass="w-full"
                             ></p-inputNumber>
                           </div>
                           <div>
@@ -433,7 +437,7 @@ interface DocumentConfig {
                               [(ngModel)]="installmentCount"
                               [min]="1"
                               [max]="12"
-                              pStyleClass="w-full"
+                              styleClass="w-full"
                             ></p-inputNumber>
                           </div>
                         </div>
@@ -457,13 +461,13 @@ interface DocumentConfig {
                     <p-button
                       label="Retour"
                       icon="pi pi-arrow-left"
-                      text="true"
-                      (onClick)="prevCallback.emit()"
+                      [text]="true"
+                      (onClick)="prevCallback()"
                     ></p-button>
                     <p-button
                       label="Continuer"
                       icon="pi pi-arrow-right"
-                      (onClick)="nextCallback.emit()"
+                      (onClick)="nextCallback()"
                     ></p-button>
                   </div>
                 </div>
@@ -588,8 +592,8 @@ interface DocumentConfig {
                     <p-button
                       label="Retour"
                       icon="pi pi-arrow-left"
-                      text="true"
-                      (onClick)="prevCallback.emit()"
+                      [text]="true"
+                      (onClick)="prevCallback()"
                     ></p-button>
                     <p-button
                       [label]="submitLabel()"
@@ -615,7 +619,7 @@ interface DocumentConfig {
                 <h3 class="text-xl font-bold">Rechercher un client</h3>
                 <p-button
                   icon="pi pi-times"
-                  text="true"
+                  [text]="true"
                   (onClick)="showCustomerSearch.set(false)"
                 ></p-button>
               </div>
@@ -668,8 +672,8 @@ interface DocumentConfig {
               <p-button
                 icon="pi pi-plus"
                 label="Créer un nouveau client"
-                outlined="true"
-                class="w-full"
+                [outlined]="true"
+                styleClass="w-full"
                 (onClick)="showNewCustomerForm.set(true); showCustomerSearch.set(false)"
               ></p-button>
             </div>
@@ -711,7 +715,7 @@ interface DocumentConfig {
             <div class="flex justify-end gap-3 mt-6">
               <p-button
                 label="Annuler"
-                outlined="true"
+                [outlined]="true"
                 (onClick)="showNewCustomerForm.set(false)"
               ></p-button>
               <p-button
@@ -943,7 +947,7 @@ export class DocumentFormComponent implements OnInit {
   ngOnInit() {
     // Load initial data
     this.productsService.loadProducts(1, 50);
-    this.customersService.loadCustomers(1, 100);
+    this.customersService.loadCustomers();
 
     // Check route for document type
     const url = this.router.url;
@@ -968,10 +972,10 @@ export class DocumentFormComponent implements OnInit {
   }
 
   loadDocumentForEdit(id: string) {
-    this.documentService.getInvoiceById(id).subscribe({
-      next: (doc:any) => {
+    this.documentService.getOrderById(id).subscribe({
+      next: (doc: any) => {
         this.selectedCustomer.set(doc.customer || null);
-        this.cartItems.set(doc.items.map((item:any) => ({
+        this.cartItems.set(doc.items.map((item: any) => ({
           product: item.product!,
           quantity: item.quantity,
           discountPercentage: item.discountPercentage || 0
@@ -984,6 +988,7 @@ export class DocumentFormComponent implements OnInit {
   getItemTotal(item: any) {
     return item.quantity * (item.product.finalPrice || item.product.price || 0) * (1 - (item.discountPercentage || 0) / 100);
   }
+
   searchProducts(term: string) {
     this.productSearchTerm.set(term);
     if (term.length > 2) {
@@ -1103,6 +1108,7 @@ export class DocumentFormComponent implements OnInit {
     const draft = {
       type: this.documentType(),
       customer: this.selectedCustomer(),
+
       items: this.cartItems(),
       config: {
         validityDays: this.validityDays(),
@@ -1126,8 +1132,11 @@ export class DocumentFormComponent implements OnInit {
 
     this.submitting.set(true);
 
+    const currentUser = this.authService.currentUser();
+    const storeId = currentUser?.storeId || (currentUser as any)?.assignedStore?.storeId || '';
+
     const request = {
-      storeId: this.authService.currentUser()?.storeId || '',
+      storeId: storeId,
       customerId: this.selectedCustomer()?.customerId,
       items: this.cartItems().map(item => ({
         productId: item.product.productId,
@@ -1142,23 +1151,19 @@ export class DocumentFormComponent implements OnInit {
       taxRate: this.taxRate()
     };
 
+    // Use createOrder for proformas/quotes, createOrderWithPayment for credit sales
     let operation;
-    switch (this.documentType()) {
-      case 'CREDIT_SALE':
-        operation = this.documentService.createOrderWithPayment(request);
-        break;
-      case 'PROFORMA':
-        operation = this.documentService.createOrder(request);
-        break;
-      case 'ONLINE':
-        operation = this.documentService.createOrder(request);
-        break;
-      default:
-        operation = this.documentService.createOrder(request);
+    if (this.documentType() === 'CREDIT_SALE') {
+      operation = this.documentService.createOrderWithPayment({
+        orderRequest: request as any,
+        paymentRequest: undefined // Credit sales don't require immediate payment
+      });
+    } else {
+      operation = this.documentService.createOrder(request as any);
     }
 
     operation.subscribe({
-      next: (doc:any) => {
+      next: (doc: any) => {
         this.submitting.set(false);
         this.messageService.add({
           severity: 'success',
@@ -1171,7 +1176,7 @@ export class DocumentFormComponent implements OnInit {
           this.router.navigate([this.getListRoute()]);
         }, 1500);
       },
-      error: (err:any) => {
+      error: (err: any) => {
         this.submitting.set(false);
         this.messageService.add({
           severity: 'error',

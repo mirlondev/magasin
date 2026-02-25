@@ -1,3 +1,8 @@
+// ============================================================
+// ENHANCED: credit-sales-list.component.ts
+// Fixed to use SelectModule, aligned with backend API
+// ============================================================
+
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { Router, RouterModule } from "@angular/router";
@@ -12,7 +17,7 @@ import { DividerModule } from "primeng/divider";
 import { IconFieldModule } from "primeng/iconfield";
 import { InputIconModule } from "primeng/inputicon";
 import { InputTextModule } from "primeng/inputtext";
-import { SelectModule } from "primeng/select";
+import { SelectModule } from "primeng/select"; // ✅ Using SelectModule
 import { SkeletonModule } from "primeng/skeleton";
 import { StyleClassModule } from "primeng/styleclass";
 import { TableModule } from "primeng/table";
@@ -28,8 +33,7 @@ import {
 } from '@angular/core';
 
 import {
-  OrderResponse, OrderStatus, PaymentStatus, InvoiceStatus, Customer,
-  PaymentMethod
+  OrderResponse, OrderStatus, PaymentStatus, PaymentMethod
 } from '../../../../core/models';
 
 type FilterStatus = 'ALL' | 'PENDING' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE';
@@ -57,7 +61,7 @@ type FilterStatus = 'ALL' | 'PENDING' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE';
             <div class="flex gap-3">
               <p-button
                 icon="pi pi-refresh"
-                outlined="true"
+                [outlined]="true"
                 (onClick)="refreshData()"
                 pTooltip="Actualiser"
               ></p-button>
@@ -145,7 +149,7 @@ type FilterStatus = 'ALL' | 'PENDING' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE';
               [(ngModel)]="selectedStatus"
               (onChange)="onStatusChange($event)"
               placeholder="Statut de paiement"
-              pStyleClass="w-48"
+              styleClass="w-48"
             ></p-select>
 
             <p-datepicker
@@ -153,12 +157,12 @@ type FilterStatus = 'ALL' | 'PENDING' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE';
               (onSelect)="onDateChange()"
               selectionMode="range"
               placeholder="Période"
-              pStyleClass="w-64"
+              styleClass="w-64"
             ></p-datepicker>
 
             <p-button
               icon="pi pi-filter-slash"
-              outlined="true"
+              [outlined]="true"
               (onClick)="clearFilters()"
               pTooltip="Effacer les filtres"
             ></p-button>
@@ -172,12 +176,12 @@ type FilterStatus = 'ALL' | 'PENDING' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE';
             [paginator]="true"
             [rows]="pageSize()"
             [totalRecords]="total()"
-            [loading]="loading"
+            [loading]="loading()"
             [rowsPerPageOptions]="[10, 25, 50]"
             [showCurrentPageReport]="true"
             currentPageReportTemplate="{first} à {last} sur {totalRecords}"
             (onPage)="onPageChange($event)"
-            pStyleClass="p-datatable-sm"
+            styleClass="p-datatable-sm"
             [tableStyle]="{ 'min-width': '75rem' }"
           >
             <ng-template pTemplate="header">
@@ -195,7 +199,7 @@ type FilterStatus = 'ALL' | 'PENDING' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE';
             </ng-template>
 
             <ng-template pTemplate="body" let-invoice>
-              <tr [class.bg-red-50]="isOverdue(invoice)" [class.dark:bg-red-900]="isOverdue(invoice)">
+              <tr [class.bg-red-50]="isOverdue(invoice)">
                 <td>
                   <div class="font-semibold text-surface-900">{{ invoice.orderNumber }}</div>
                   <div class="text-xs text-surface-500">{{ invoice.orderType }}</div>
@@ -227,7 +231,7 @@ type FilterStatus = 'ALL' | 'PENDING' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE';
                       {{ invoice.dueDate | date:'dd/MM/yyyy' }}
                     </div>
                     @if (isOverdue(invoice)) {
-                      <p-tag value="En retard" severity="danger" pStyleClass="text-xs"></p-tag>
+                      <p-tag value="En retard" severity="danger" styleClass="text-xs"></p-tag>
                     }
                   } @else {
                     <span class="text-surface-400">-</span>
@@ -248,27 +252,27 @@ type FilterStatus = 'ALL' | 'PENDING' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE';
                   <p-tag
                     [value]="getPaymentStatusLabel(invoice.paymentStatus)"
                     [severity]="getPaymentStatusSeverity(invoice.paymentStatus)"
-                    pStyleClass="text-xs"
+                    styleClass="text-xs"
                   ></p-tag>
                 </td>
                 <td>
                   <div class="flex gap-1">
                     <p-button
                       icon="pi pi-eye"
-                      text="true"
+                      [text]="true"
                       (onClick)="viewInvoice(invoice)"
                       pTooltip="Détails"
                     ></p-button>
                     <p-button
                       icon="pi pi-file-pdf"
-                      text="true"
+                      [text]="true"
                       (onClick)="downloadPdf(invoice)"
                       pTooltip="Télécharger PDF"
                     ></p-button>
                     @if (invoice.remainingAmount > 0) {
                       <p-button
                         icon="pi pi-money-bill"
-                        text="true"
+                        [text]="true"
                         severity="success"
                         (onClick)="recordPayment(invoice)"
                         pTooltip="Enregistrer paiement"
@@ -325,7 +329,7 @@ type FilterStatus = 'ALL' | 'PENDING' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE';
                   [options]="paymentMethods"
                   [(ngModel)]="selectedPaymentMethod"
                   placeholder="Sélectionner..."
-                  class="w-full"
+                  styleClass="w-full"
                   optionLabel="label"
                   optionValue="value"
                 ></p-select>
@@ -334,7 +338,7 @@ type FilterStatus = 'ALL' | 'PENDING' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE';
               <div>
                 <label class="block text-sm font-medium mb-2">Notes</label>
                 <textarea
-                  pTextarea
+                  pInputTextarea
                   [(ngModel)]="paymentNotes"
                   rows="2"
                   class="w-full"
@@ -345,7 +349,7 @@ type FilterStatus = 'ALL' | 'PENDING' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE';
             <div class="flex justify-end gap-3 mt-6">
               <p-button
                 label="Annuler"
-                outlined="true"
+                [outlined]="true"
                 (onClick)="showPaymentDialog.set(false)"
               ></p-button>
               <p-button
@@ -393,7 +397,7 @@ export class CreditSalesListComponent implements OnInit {
 
   statusOptions = [
     { label: 'Tous les statuts', value: 'ALL' },
-    { label: 'En attente', value: 'UNPAID' },
+    { label: 'Non payé', value: 'UNPAID' },
     { label: 'Partiellement payé', value: 'PARTIALLY_PAID' },
     { label: 'Payé', value: 'PAID' },
     { label: 'En retard', value: 'OVERDUE' }
@@ -518,6 +522,7 @@ export class CreditSalesListComponent implements OnInit {
 
     this.processingPayment.set(true);
     
+    // Use the correct endpoint: POST /orders/{orderId}/payments
     this.documentService.addPaymentToOrder(invoice.orderId, {
       method: this.selectedPaymentMethod() as PaymentMethod,
       amount: this.paymentAmount(),
